@@ -106,4 +106,4 @@ def write_wav(path: str, rate: int, sound: np.ndarray):
         wav.setnchannels(2)
         wav.setsampwidth(4)
         wav.setframerate(rate)
-        wav.writeframes(stereo)
+        wav.writeframes(stereo.tobytes())
