@@ -16,7 +16,7 @@ setup(
     author_email='ewald.de.wit@gmail.com',
     license='BSD',
     classifiers=[
-        'Development Status :: 5 - Stable',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: End Users/Desktop',
         'Topic :: Multimedia :: Sound/Audio :: Analysis',
         'License :: OSI Approved :: BSD License',
