@@ -41,7 +41,7 @@ The program is started from a console by typing::
     hifiscan
 
 All functionality is also available for interactive use in
-`this Jupyter notebook <chirp.pynb>`_.
+`this Jupyter notebook <chirp.ipynb>`_.
 
 Examples
 ========
