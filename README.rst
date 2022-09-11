@@ -232,7 +232,7 @@ with Bluetooth.
    :alt: PyPi
    :target: https://pypi.python.org/pypi/hifiscan
 
-.. |PyVersion| image:: https://img.shields.io/badge/python-3.7+-blue.svg
+.. |PyVersion| image:: https://img.shields.io/badge/python-3.8+-blue.svg
    :alt:
 
 .. |Status| image:: https://img.shields.io/badge/status-stable-green.svg

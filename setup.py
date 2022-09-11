@@ -20,7 +20,6 @@ setup(
         'Intended Audience :: End Users/Desktop',
         'Topic :: Multimedia :: Sound/Audio :: Analysis',
         'License :: OSI Approved :: BSD License',
-        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
@@ -30,6 +29,6 @@ setup(
     entry_points={
         'gui_scripts': ['hifiscan=hifiscan.app:main']
     },
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     install_requires=['numpy', 'PyQt5', 'pyqtgraph', 'sounddevice']
 )
