@@ -1,0 +1,12 @@
+hifiscan/__pycache__
+dist
+build
+.vscode
+.idea
+.settings
+.spyproject
+.project
+.pydevproject
+.mypy_cache
+.eggs
+hifiscan.egg-info
