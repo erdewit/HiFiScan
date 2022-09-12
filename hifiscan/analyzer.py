@@ -1,3 +1,4 @@
+import array
 from functools import lru_cache
 from typing import NamedTuple, Tuple
 
@@ -66,19 +67,20 @@ class Analyzer:
         for meth in ['X', 'Y', 'H', 'H2', 'h', 'h_inv', 'spectrum']:
             setattr(self, meth, lru_cache(getattr(self, meth)))
 
-    def findMatch(self, recording: np.ndarray) -> bool:
+    def findMatch(self, recording: array.array) -> bool:
         """
         Use correlation to find a match of the chirp in the recording.
         If found, return True and store the system response as ``y``.
         """
-        self.time = recording.size / self.rate
-        if recording.size >= self.x.size:
+        sz = len(recording)
+        self.time = sz / self.rate
+        if sz >= self.x.size:
             Y = np.fft.fft(recording)
-            X = np.fft.fft(np.flip(self.x), n=recording.size)
+            X = np.fft.fft(np.flip(self.x), n=sz)
             corr = np.fft.ifft(X * Y).real
             idx = int(corr.argmax()) - self.x.size + 1
             if idx >= 0:
-                self.y = recording[idx:idx + self.x.size].copy()
+                self.y = np.array(recording[idx:idx + self.x.size], 'f')
                 return True
         return False
 

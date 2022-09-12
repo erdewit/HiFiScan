@@ -66,15 +66,14 @@ class Audio:
         """Is there sound playing from the play queue?"""
         return bool(self.playQ)
 
-    def record(self) -> AsyncIterator[np.ndarray]:
+    def record(self) -> AsyncIterator[array.array]:
         """
         Start a recording, yielding the entire recording every time a
-        new chunk is added. Note: The yielded array holds a memory reference
-        that is only valid until the next chunk is added.
+        new chunk is added. The recording is a 32-bit float array.
         """
         arr = array.array('f')
         return self.recorded.map(arr.extend).map(
-            lambda _: np.frombuffer(arr, 'f')).aiter(skip_to_last=True)
+            lambda _: arr).aiter(skip_to_last=True)
 
 
 @dataclass
