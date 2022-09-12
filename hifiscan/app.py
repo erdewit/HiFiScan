@@ -87,6 +87,8 @@ class App(qt.QMainWindow):
             analyzer = self.refAnalyzer
         else:
             analyzer = self.analyzer
+        if not analyzer:
+            return
         secs = self.msDuration.value() / 1000
         dbRange = self.dbRange.value()
         beta = self.kaiserBeta.value()
@@ -119,6 +121,8 @@ class App(qt.QMainWindow):
             analyzer = self.refAnalyzer
         else:
             analyzer = self.analyzer
+        if not analyzer:
+            return
         ms = int(self.msDuration.value())
         db = int(self.dbRange.value())
         beta = int(self.kaiserBeta.value())
