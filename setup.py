@@ -30,5 +30,6 @@ setup(
         'gui_scripts': ['hifiscan=hifiscan.app:main']
     },
     python_requires=">=3.8",
-    install_requires=['numpy', 'PyQt5', 'pyqtgraph', 'sounddevice']
+    install_requires=['eventkit', 'numba', 'numpy', 'PyQt5', 'pyqtgraph',
+                      'sounddevice']
 )
