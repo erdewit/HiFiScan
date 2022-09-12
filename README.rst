@@ -221,7 +221,7 @@ is taking place. Lets measure this!
 It is seen that there is a indeed a bit of active tuning
 going on, although most of the tuning is done acoustically.
 In orange is bluetooth and in cyan is the analog cable.
-There's a wide +10dB peak at 1.8 kHz and a narrow +4dB peak at 5.5 kHz.
+There's a wide -10dB attenuation at 1.8 kHz and a narrow -4dB one at 5.5 kHz.
 This tuning can be applied to the analog signal to get the same sound as
 with Bluetooth.
 
