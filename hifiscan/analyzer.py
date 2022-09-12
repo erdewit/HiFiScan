@@ -60,7 +60,7 @@ class Analyzer:
         self.rate = rate
         self.fmin = min(f0, f1)
         self.fmax = max(f0, f1)
-        self.time: float = 0
+        self.time = 0
 
         # Cache the methods in a way that allows garbage collection of self.
         for meth in ['X', 'Y', 'H', 'H2', 'h', 'h_inv', 'spectrum']:
