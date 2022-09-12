@@ -69,7 +69,7 @@ class Analyzer:
     def findMatch(self, recording: np.ndarray) -> bool:
         """
         Use correlation to find a match of the chirp in the recording.
-        If found, return True and store the system respons as ``y``.
+        If found, return True and store the system response as ``y``.
         """
         self.time = recording.size / self.rate
         if recording.size >= self.x.size:
