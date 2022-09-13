@@ -267,12 +267,15 @@ def linear_chirp(f0: float, f1: float, secs: float, rate: int):
 
 def resample(a: np.ndarray, size: int) -> np.ndarray:
     """
-    Re-sample the array ``a`` to the given new ``size``.
+    Re-sample the array ``a`` to the given new ``size`` in a way that
+    preserves the overall density.
     """
     xp = np.linspace(0, 1, a.size)
+    yp = np.cumsum(a)
     x = np.linspace(0, 1, size)
-    y = np.interp(x, xp, a)
-    return y
+    y = np.interp(x, xp, yp)
+    r = size / a.size * np.diff(y, prepend=0)
+    return r
 
 
 @njit
