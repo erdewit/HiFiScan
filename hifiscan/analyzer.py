@@ -234,8 +234,7 @@ def tone(f: float, secs: float, rate: int):
 
 
 @lru_cache
-def geom_chirp(
-        f0: float, f1: float, secs: float, rate: int, invert: bool = False):
+def geom_chirp(f0: float, f1: float, secs: float, rate: int):
     """
     Generate a geometric chirp (with an exponentially changing frequency).
 
@@ -249,8 +248,6 @@ def geom_chirp(
 
     t = np.arange(0, secs * rate) / rate
     chirp = np.sin(2 * np.pi * f0 * (k ** t - 1) / np.log(k))
-    if invert:
-        chirp = np.flip(chirp) / k ** t
     return chirp
 
 
