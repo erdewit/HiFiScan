@@ -281,15 +281,14 @@ def smooth(freq: np.ndarray, data: np.ndarray, smoothing: float) -> np.ndarray:
     if not smoothing:
         return data
     weight = 1 / (1 + freq * 2 ** (smoothing / 2 - 15))
-    forward = np.empty_like(data)
-    backward = np.empty_like(data)
+    smoothed = np.empty_like(data)
     prev = data[-1]
     for i, w in enumerate(np.flip(weight), 1):
-        backward[-i] = prev = (1 - w) * prev + w * data[-i]
-    prev = backward[0]
+        smoothed[-i] = prev = (1 - w) * prev + w * data[-i]
+    prev = smoothed[0]
     for i, w in enumerate(weight):
-        forward[i] = prev = (1 - w) * prev + w * backward[i]
-    return forward
+        smoothed[i] = prev = (1 - w) * prev + w * smoothed[i]
+    return smoothed
 
 
 @lru_cache
