@@ -72,8 +72,8 @@ class Audio:
         new chunk is added. The recording is a 32-bit float array.
         """
         arr = array.array('f')
-        return self.recorded.map(arr.extend).map(
-            lambda _: arr).aiter(skip_to_last=True)
+        return self.recorded.map(
+            arr.extend).constant(arr).aiter(skip_to_last=True)
 
 
 @dataclass
