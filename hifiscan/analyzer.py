@@ -3,12 +3,7 @@ from functools import lru_cache
 from typing import NamedTuple, Tuple
 
 import numpy as np
-
-try:
-    from numba import njit
-except ImportError:
-    def njit(f):
-        return f
+from numba import njit
 
 
 class XY(NamedTuple):
