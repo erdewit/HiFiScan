@@ -6,8 +6,8 @@ import signal
 import sys
 from pathlib import Path
 
-import PyQt5.Qt as qt
 import numpy as np
+from PySide6 import QtGui as qtgui, QtWidgets as qt
 import pyqtgraph as pg
 
 import hifiscan as hifi
@@ -151,7 +151,8 @@ class App(qt.QMainWindow):
         """Run both the Qt and asyncio event loops."""
 
         def updateQt():
-            qt.qApp.processEvents()
+            qApp = qtgui.QGuiApplication.instance()
+            qApp.processEvents()
             self.loop.call_later(0.03, updateQt)
 
         signal.signal(signal.SIGINT, lambda *args: self.close())
@@ -180,7 +181,7 @@ class App(qt.QMainWindow):
         self.refSpectrumPlot = pw.plot(pen=(255, 100, 0), stepMode='right')
         self.spectrumPlot = pw.plot(pen=(0, 255, 255), stepMode='right')
         self.spectrumPlot.curve.setCompositionMode(
-            qt.QPainter.CompositionMode_Plus)
+            qtgui.QPainter.CompositionMode_Plus)
         vbox.addWidget(pw)
 
         self.lo = pg.SpinBox(
@@ -224,7 +225,7 @@ class App(qt.QMainWindow):
         topWidget = qt.QWidget()
         vbox = qt.QVBoxLayout()
         topWidget.setLayout(vbox)
-        splitter = qt.QSplitter(qt.Qt.Vertical)
+        splitter = qt.QSplitter(qtgui.Qt.Vertical)
         vbox.addWidget(splitter)
 
         self.irPlotWidget = pw = pg.PlotWidget()
@@ -321,7 +322,7 @@ class App(qt.QMainWindow):
         pauseButton = qt.QPushButton('Pause')
         pauseButton.setShortcut('Space')
         pauseButton.setToolTip('<Space>')
-        pauseButton.setFocusPolicy(qt.Qt.NoFocus)
+        pauseButton.setFocusPolicy(qtgui.Qt.NoFocus)
         pauseButton.clicked.connect(self.setPaused)
 
         exitButton = qt.QPushButton('Exit')
