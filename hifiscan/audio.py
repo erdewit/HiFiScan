@@ -50,7 +50,7 @@ class Audio:
             idx = idx2
             if not playItem.remaining():
                 self.playQ.popleft()
-        self.recorded.emit_threadsafe(in_data)
+        self.recorded.emit_threadsafe(in_data.copy())
 
     def play(self, sound: np.ndarray):
         """Add a sound to the play queue."""
