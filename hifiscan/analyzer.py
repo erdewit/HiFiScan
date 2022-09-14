@@ -2,8 +2,9 @@ import array
 from functools import lru_cache
 from typing import NamedTuple, Tuple
 
-import numpy as np
 from numba import njit
+
+import numpy as np
 
 
 class XY(NamedTuple):

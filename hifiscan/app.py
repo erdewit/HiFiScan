@@ -6,8 +6,9 @@ import signal
 import sys
 from pathlib import Path
 
-import numpy as np
 from PySide6 import QtGui as qtgui, QtWidgets as qt
+
+import numpy as np
 import pyqtgraph as pg
 
 import hifiscan as hifi
