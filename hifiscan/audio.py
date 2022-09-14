@@ -1,5 +1,4 @@
 import array
-import asyncio
 import sys
 import wave
 from collections import deque
@@ -28,7 +27,6 @@ class Audio:
             callback=self._onStream)
         self.stream.start()
         self.rate = self.stream.samplerate
-        self.loop = asyncio.get_event_loop_policy().get_event_loop()
 
     def __enter__(self):
         return self
