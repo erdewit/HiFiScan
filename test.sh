@@ -1,4 +1,4 @@
 #!/bin/bash
 
-mypy hifiscan
+#mypy hifiscan
 flake8 hifiscan
