@@ -71,9 +71,9 @@ class Audio:
         Start a recording, yielding the entire recording every time a
         new chunk is added. The recording is a 32-bit float array.
         """
-        arr = array.array('f')
+        recording = array.array('f')
         return self.recorded.map(
-            arr.extend).constant(arr).aiter(skip_to_last=True)
+            recording.extend).constant(recording).aiter(skip_to_last=True)
 
 
 @dataclass
