@@ -286,7 +286,6 @@ def smooth(freq: np.ndarray, data: np.ndarray, smoothing: float) -> np.ndarray:
     prev = data[-1]
     for i, w in enumerate(np.flip(weight), 1):
         smoothed[-i] = prev = (1 - w) * prev + w * data[-i]
-    prev = smoothed[0]
     for i, w in enumerate(weight):
         smoothed[i] = prev = (1 - w) * prev + w * smoothed[i]
     return smoothed
