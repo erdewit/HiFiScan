@@ -268,6 +268,7 @@ class Analyzer:
             targetSpectrum = None
         return targetSpectrum
 
+
 @lru_cache
 def tone(f: float, secs: float, rate: int):
     """Generate a sine wave."""
