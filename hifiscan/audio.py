@@ -9,6 +9,8 @@ import eventkit as ev
 import numpy as np
 import sounddevice as sd
 
+from hifiscan.analyzer import Correction
+
 
 class Audio:
     """
@@ -104,3 +106,15 @@ def write_wav(path: str, rate: int, sound: np.ndarray):
         wav.setsampwidth(4)
         wav.setframerate(rate)
         wav.writeframes(stereo.tobytes())
+
+
+def read_correction(path: str) -> Correction:
+    corr = []
+    with open(path, 'r') as f:
+        for line in f.readlines():
+            try:
+                freq, db = line.split()
+                corr.append((float(freq), float(db)))
+            except ValueError:
+                pass
+    return corr

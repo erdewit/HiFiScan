@@ -1,6 +1,6 @@
 import array
 from functools import lru_cache
-from typing import NamedTuple, Tuple
+from typing import List, NamedTuple, Optional, Tuple
 
 from numba import njit
 
@@ -12,6 +12,9 @@ class XY(NamedTuple):
 
     x: np.ndarray
     y: np.ndarray
+
+
+Correction = List[Tuple[float, float]]
 
 
 class Analyzer:
@@ -47,7 +50,9 @@ class Analyzer:
     time: float
 
     def __init__(
-            self, f0: int, f1: int, secs: float, rate: int, ampl: float):
+            self, f0: int, f1: int, secs: float, rate: int, ampl: float,
+            calibration: Optional[Correction] = None,
+            target: Optional[Correction] = None):
         self.chirp = ampl * geom_chirp(f0, f1, secs, rate)
         self.x = np.concatenate([
             self.chirp,
@@ -58,9 +63,12 @@ class Analyzer:
         self.fmin = min(f0, f1)
         self.fmax = max(f0, f1)
         self.time = 0
+        self._calibration = calibration
+        self._target = target
 
         # Cache the methods in a way that allows garbage collection of self.
-        for meth in ['X', 'Y', 'H', 'H2', 'h', 'h_inv', 'spectrum']:
+        for meth in ['X', 'Y', 'H', 'H2', 'h', 'h_inv', 'spectrum',
+                     'frequency', 'calibration', 'target']:
             setattr(self, meth, lru_cache(getattr(self, meth)))
 
     def findMatch(self, recording: array.array) -> bool:
@@ -84,15 +92,41 @@ class Analyzer:
         """See if time to find a match has exceeded the timeout limit."""
         return self.time > self.secs + self.TIMEOUT_SECS
 
-    def freqRange(self, size: int) -> slice:
+    def frequency(self) -> np.ndarray:
+        return np.linspace(0, self.rate // 2, self.X().size)
+
+    def freqRange(self, size: int = 0) -> slice:
         """
         Return range slice of the valid frequency range for an array
         of given size.
         """
+        size = size or self.X().size
         nyq = self.rate / 2
         i0 = int(0.5 + size * self.fmin / nyq)
         i1 = int(0.5 + size * self.fmax / nyq)
         return slice(i0, i1 + 1)
+
+    def calibration(self) -> Optional[np.ndarray]:
+        return self.interpolateCorrection(self._calibration)
+
+    def target(self) -> Optional[np.ndarray]:
+        return self.interpolateCorrection(self._target)
+
+    def interpolateCorrection(self, corr: Correction) -> Optional[np.ndarray]:
+        """
+        Logarithmically interpolate the correction to a full-sized array.
+        """
+        if not corr:
+            return None
+        corr = sorted(c for c in corr if c[0] > 0)
+        a = np.array(corr, 'd').T
+        logF = np.log(a[0])
+        db = a[1]
+        freq = self.frequency()
+        interp = np.empty_like(freq)
+        interp[1:] = np.interp(np.log(freq[1:]), logF, db)
+        interp[0] = 0
+        return interp
 
     def X(self) -> np.ndarray:
         return np.fft.rfft(self.x)
@@ -109,14 +143,16 @@ class Analyzer:
         Y = self.Y()
         # H = Y / X
         H = Y * np.conj(X) / (np.abs(X) ** 2 + 1e-3)
-        freq = np.linspace(0, self.rate // 2, H.size)
+        if self._calibration:
+            H *= 10 ** (-self.calibration() / 20)
+        freq = self.frequency()
         return XY(freq, H)
 
     def H2(self, smoothing: float):
         """Calculate smoothed squared transfer function |H|^2."""
         freq, H = self.H()
         H = np.abs(H)
-        r = self.freqRange(H.size)
+        r = self.freqRange()
         H2 = np.empty_like(H)
         # Perform smoothing on the squared amplitude.
         H2[r] = smooth(freq[r], H[r] ** 2, smoothing)
@@ -143,7 +179,7 @@ class Analyzer:
           If 0 then no smoothing is done.
         """
         freq, H2 = self.H2(smoothing)
-        r = self.freqRange(H2.size)
+        r = self.freqRange()
         return XY(freq[r], 10 * np.log10(H2[r]))
 
     def h_inv(
@@ -162,6 +198,9 @@ class Analyzer:
             smoothing: Strength of frequency-dependent smoothing.
         """
         freq, H2 = self.H2(smoothing)
+        # Apply target curve.
+        if self._target:
+            H2 = H2 * 10 ** (-self.target() / 10)
         # Re-sample to halve the number of samples needed.
         n = int(secs * self.rate / 2)
         H = resample(H2, n) ** 0.5
@@ -205,7 +244,7 @@ class Analyzer:
         """
         freq, H2 = self.H2(0)
         H = H2 ** 0.5
-        r = self.freqRange(H.size)
+        r = self.freqRange()
 
         tf = resample(corrFactor.y, H.size)
         resp = 20 * np.log10(tf[r] * H[r])
@@ -218,6 +257,16 @@ class Analyzer:
 
         return spectrum, spectrum_resamp
 
+    def targetSpectrum(self, spectrum: XY) -> Optional[XY]:
+        if self._target:
+            freq, resp = spectrum
+            r = self.freqRange()
+            target = self.target()[r]
+            target += np.average(resp - target, weights=1 / freq)
+            targetSpectrum = XY(freq, target)
+        else:
+            targetSpectrum = None
+        return targetSpectrum
 
 @lru_cache
 def tone(f: float, secs: float, rate: int):

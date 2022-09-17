@@ -3,4 +3,4 @@
 from hifiscan.analyzer import (
     Analyzer, XY, geom_chirp, linear_chirp, resample, smooth, taper,
     tone, window)
-from hifiscan.audio import Audio, write_wav
+from hifiscan.audio import Audio, read_correction, write_wav

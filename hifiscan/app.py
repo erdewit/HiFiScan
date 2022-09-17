@@ -34,6 +34,8 @@ class App(qt.QMainWindow):
         self.paused = False
         self.analyzer = None
         self.refAnalyzer = None
+        self.calibration = None
+        self.target = None
         self.saveDir = Path.home()
         self.loop = asyncio.get_event_loop_policy().get_event_loop()
         self.task = self.loop.create_task(wrap_coro(self.analyze()))
@@ -52,7 +54,8 @@ class App(qt.QMainWindow):
                     await asyncio.sleep(0.1)
                     continue
 
-                analyzer = hifi.Analyzer(lo, hi, secs, audio.rate, ampl)
+                analyzer = hifi.Analyzer(lo, hi, secs, audio.rate, ampl,
+                                         self.calibration, self.target)
                 audio.play(analyzer.chirp)
                 async for recording in audio.record():
                     if self.paused:
@@ -79,6 +82,11 @@ class App(qt.QMainWindow):
         if self.analyzer:
             spectrum = self.analyzer.spectrum(smoothing)
             self.spectrumPlot.setData(*spectrum)
+            target = self.analyzer.targetSpectrum(spectrum)
+            if target:
+                self.targetPlot.setData(*target)
+            else:
+                self.targetPlot.clear()
         if self.refAnalyzer:
             spectrum = self.refAnalyzer.spectrum(smoothing)
             self.refSpectrumPlot.setData(*spectrum)
@@ -107,6 +115,11 @@ class App(qt.QMainWindow):
         spectrum, spectrum_resamp = analyzer.correctedSpectrum(corrFactor)
         self.simPlot.setData(*spectrum)
         self.avSimPlot.setData(*spectrum_resamp)
+        target = analyzer.targetSpectrum(spectrum)
+        if target:
+            self.targetSimPlot.setData(*target)
+        else:
+            self.targetSimPlot.clear()
 
     def screenshot(self):
         timestamp = dt.datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -174,11 +187,12 @@ class App(qt.QMainWindow):
         axes = {ori: Axis(ori) for ori in
                 ['bottom', 'left', 'top', 'right']}
         for ax in axes.values():
-            ax.setGrid(255)
+            ax.setGrid(200)
         self.spectrumPlotWidget = pw = pg.PlotWidget(axisItems=axes)
         pw.setLabel('left', 'Relative Power [dB]')
         pw.setLabel('bottom', 'Frequency [Hz]')
         pw.setLogMode(x=True)
+        self.targetPlot = pw.plot(pen=(255, 0, 0), stepMode='right')
         self.refSpectrumPlot = pw.plot(pen=(255, 100, 0), stepMode='right')
         self.spectrumPlot = pw.plot(pen=(0, 255, 255), stepMode='right')
         self.spectrumPlot.curve.setCompositionMode(
@@ -250,13 +264,14 @@ class App(qt.QMainWindow):
 
         axes = {ori: Axis(ori) for ori in ['bottom', 'left']}
         for ax in axes.values():
-            ax.setGrid(255)
+            ax.setGrid(200)
         self.simPlotWidget = pw = pg.PlotWidget(axisItems=axes)
         pw.showGrid(True, True, 0.8)
         pw.setLabel('left', 'Corrected Spectrum')
         self.simPlot = pg.PlotDataItem(pen=(150, 100, 60), stepMode='right')
         pw.addItem(self.simPlot, ignoreBounds=True)
         self.avSimPlot = pw.plot(pen=(255, 255, 200), stepMode='right')
+        self.targetSimPlot = pw.plot(pen=(255, 0, 0), stepMode='right')
         pw.setLogMode(x=True)
         splitter.addWidget(pw)
 
@@ -315,6 +330,53 @@ class App(qt.QMainWindow):
         spectrumButton.setChecked(True)
         buttons.idClicked.connect(self.stack.setCurrentIndex)
 
+        def loadCalibration():
+            path, _ = qt.QFileDialog.getOpenFileName(
+                self, 'Load mic calibration', str(self.saveDir))
+            if path:
+                cal = hifi.read_correction(path)
+                if cal:
+                    self.calibration = cal
+                    calAction.setText(path)
+                    self.saveDir = Path(path).parent
+                else:
+                    clearCalibration()
+
+        def clearCalibration():
+            self.calibration = None
+            calAction.setText('None')
+
+        def loadTarget():
+            path, _ = qt.QFileDialog.getOpenFileName(
+                self, 'Load target curve', str(self.saveDir))
+            if path:
+                target = hifi.read_correction(path)
+                if target:
+                    self.target = target
+                    targetAction.setText(path)
+                    self.saveDir = Path(path).parent
+                else:
+                    clearTarget()
+
+        def clearTarget():
+            self.target = None
+            targetAction.setText('None')
+
+        menuBar = qt.QMenuBar()
+        corr = qt.QMenu('Corrections...')
+        corr.addSection('Mic Calibration')
+        corr.addAction('Load', loadCalibration)
+        corr.addAction('Clear', clearCalibration)
+        corr.addSection('Current:')
+        calAction = corr.addAction('None')
+        corr.addSeparator()
+        corr.addSection('Target Curve')
+        corr.addAction('Load', loadTarget)
+        corr.addAction('Clear', clearTarget)
+        corr.addSection('Current:')
+        targetAction = corr.addAction('None')
+        menuBar.addMenu(corr)
+
         screenshotButton = qt.QPushButton('Screenshot')
         screenshotButton.setShortcut('S')
         screenshotButton.setToolTip('<Key S>')
@@ -333,8 +395,10 @@ class App(qt.QMainWindow):
 
         hbox = qt.QHBoxLayout()
         hbox.addWidget(spectrumButton)
-        hbox.addSpacing(32)
+        hbox.addSpacing(16)
         hbox.addWidget(irButton)
+        hbox.addSpacing(64)
+        hbox.addWidget(menuBar)
         hbox.addStretch(1)
         hbox.addWidget(screenshotButton)
         hbox.addSpacing(32)

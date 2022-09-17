@@ -141,12 +141,17 @@ it has this frequency response:
 
 .. image:: images/mic_response.png
 
-With EasyEffects we make the following correction.
-The correction can be applied either to the input or the
-output. Here it's applied to the output, as long as it is
-turned off after the calibration that's OK.
+We create a text file that describes the microphone's frequency response::
 
-.. image:: images/mic_correction.png
+  20 -1.5
+  150 0
+  4500 0
+  10000 4
+  17000 0
+  20000 -2
+
+The file is imported with "Corrections... -> Mic Calibration -> Load".
+Manifucturer-supplied calibration files can be imported here as well.
 
 Measuring the spectrum bears out the concerning lack
 of treble:
