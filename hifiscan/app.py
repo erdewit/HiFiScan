@@ -6,7 +6,7 @@ import signal
 import sys
 from pathlib import Path
 
-from PySide6 import QtGui as qtgui, QtWidgets as qt
+from PyQt6 import QtCore as qtcore, QtGui as qtgui, QtWidgets as qt
 
 import numpy as np
 import pyqtgraph as pg
@@ -196,7 +196,7 @@ class App(qt.QMainWindow):
         self.refSpectrumPlot = pw.plot(pen=(255, 100, 0), stepMode='right')
         self.spectrumPlot = pw.plot(pen=(0, 255, 255), stepMode='right')
         self.spectrumPlot.curve.setCompositionMode(
-            qtgui.QPainter.CompositionMode_Plus)
+            qtgui.QPainter.CompositionMode.CompositionMode_Plus)
         vbox.addWidget(pw)
 
         self.lo = pg.SpinBox(
@@ -240,7 +240,7 @@ class App(qt.QMainWindow):
         topWidget = qt.QWidget()
         vbox = qt.QVBoxLayout()
         topWidget.setLayout(vbox)
-        splitter = qt.QSplitter(qtgui.Qt.Vertical)
+        splitter = qt.QSplitter(qtcore.Qt.Orientation.Vertical)
         vbox.addWidget(splitter)
 
         self.irPlotWidget = pw = pg.PlotWidget()
@@ -337,14 +337,14 @@ class App(qt.QMainWindow):
                 cal = hifi.read_correction(path)
                 if cal:
                     self.calibration = cal
-                    calAction.setText(path)
+                    calAction.setText(calTxt + path)
                     self.saveDir = Path(path).parent
                 else:
                     clearCalibration()
 
         def clearCalibration():
             self.calibration = None
-            calAction.setText('None')
+            calAction.setText(calTxt + 'None')
 
         def loadTarget():
             path, _ = qt.QFileDialog.getOpenFileName(
@@ -353,29 +353,31 @@ class App(qt.QMainWindow):
                 target = hifi.read_correction(path)
                 if target:
                     self.target = target
-                    targetAction.setText(path)
+                    targetAction.setText(targetTxt + path)
                     self.saveDir = Path(path).parent
                 else:
                     clearTarget()
 
         def clearTarget():
             self.target = None
-            targetAction.setText('None')
+            targetAction.setText(targetTxt + 'None')
 
-        menuBar = qt.QMenuBar()
+        def correctionsPressed():
+            corr.popup(correctionsButton.mapToGlobal(qtcore.QPoint(0, 0)))
+
+        calTxt = 'Mic Calibration: '
+        targetTxt = 'Target Curve: '
         corr = qt.QMenu('Corrections...')
-        corr.addSection('Mic Calibration')
+        calAction = corr.addAction(calTxt + 'None', loadCalibration)
         corr.addAction('Load', loadCalibration)
         corr.addAction('Clear', clearCalibration)
-        corr.addSection('Current:')
-        calAction = corr.addAction('None')
         corr.addSeparator()
-        corr.addSection('Target Curve')
+        targetAction = corr.addAction(targetTxt + 'None', loadTarget)
         corr.addAction('Load', loadTarget)
         corr.addAction('Clear', clearTarget)
-        corr.addSection('Current:')
-        targetAction = corr.addAction('None')
-        menuBar.addMenu(corr)
+
+        correctionsButton = qt.QPushButton('Corrections...')
+        correctionsButton.pressed.connect(correctionsPressed)
 
         screenshotButton = qt.QPushButton('Screenshot')
         screenshotButton.setShortcut('S')
@@ -385,7 +387,7 @@ class App(qt.QMainWindow):
         pauseButton = qt.QPushButton('Pause')
         pauseButton.setShortcut('Space')
         pauseButton.setToolTip('<Space>')
-        pauseButton.setFocusPolicy(qtgui.Qt.NoFocus)
+        pauseButton.setFocusPolicy(qtcore.Qt.FocusPolicy.NoFocus)
         pauseButton.clicked.connect(self.setPaused)
 
         exitButton = qt.QPushButton('Exit')
@@ -398,7 +400,7 @@ class App(qt.QMainWindow):
         hbox.addSpacing(16)
         hbox.addWidget(irButton)
         hbox.addSpacing(64)
-        hbox.addWidget(menuBar)
+        hbox.addWidget(correctionsButton)
         hbox.addStretch(1)
         hbox.addWidget(screenshotButton)
         hbox.addSpacing(32)
