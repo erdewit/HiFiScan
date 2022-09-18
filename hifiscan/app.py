@@ -367,7 +367,7 @@ class App(qt.QMainWindow):
 
         calTxt = 'Mic Calibration: '
         targetTxt = 'Target Curve: '
-        corr = qt.QMenu('Corrections...')
+        corr = qt.QMenu()
         calAction = corr.addAction(calTxt + 'None', loadCalibration)
         corr.addAction('Load', loadCalibration)
         corr.addAction('Clear', clearCalibration)
