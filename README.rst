@@ -242,7 +242,7 @@ Lets use this zig-zagging target curve::
 
   300 -10
   500 10
-  1000 0
+  1000 5
   2000 10
   4000 10
   6000 0
