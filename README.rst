@@ -34,7 +34,7 @@ Installation
 
 ::
 
-    pip install hifiscan
+    pip install -U hifiscan
 
 The program is started from a console by typing::
 
@@ -231,6 +231,33 @@ This tuning can be applied to the analog signal to get the same sound as
 with Bluetooth.
 
 .. image:: images/dali-spectrum.png
+
+Using a target curve
+--------------------
+
+Instead of aiming for a flat spectrum, it's also possible to target
+a specific curve. This is done by creating a text file with the target
+curve and importing it with "Corrections... -> Target Curve -> Load".
+Lets use this zig-zagging target curve::
+
+  300 -10
+  500 10
+  1000 0
+  2000 10
+  4000 10
+  6000 0
+  20000 -10
+
+In the Impulse Response section we see in the lower graph that
+a fit is made to the red line, which is the target curve.
+
+.. image:: images/target_IR.png
+
+The impulse with the baked-in target spectrum is exported and imported
+into EasyEffects. In orange is the original spectrum, in red is the target
+and in cyan the reshaped spectrum that tries to follow the target curve:
+
+.. image:: images/target_spectrum.png
 
 
 .. |PyPiVersion| image:: https://img.shields.io/pypi/v/hifiscan.svg
