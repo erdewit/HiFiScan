@@ -219,7 +219,7 @@ class Analyzer:
         z = z[:-1]
         z *= window(z.size, kaiserBeta)
         # Normalize using a fractal dimension for scaling.
-        dim = 1.6
+        dim = 1.5
         norm = (np.abs(z) ** dim).sum() ** (1 / dim)
         z /= norm
         # assert np.allclose(z[-(z.size // 2):][::-1], z[:z.size // 2])
