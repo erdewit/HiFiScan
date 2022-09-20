@@ -95,8 +95,12 @@ and then "Load"):
 
 .. image:: images/Convolver.png
 
-We go back to the spectrum measurement and set the uncorrected
-spectrum as reference (to compare with later measurements).
+We go back to the spectrum measurement and store the uncorrected
+spectrum with the "Store" button (to compare with later measurements).
+More measurements can be stored as well, for example where the microphone
+is placed in different locatations, The total average of the stored
+measurements is shown in orange
+
 Measuring the equalized system gives this:
 
 .. image:: images/laptop-flattened-spectrum.png

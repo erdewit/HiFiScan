@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import datetime as dt
 import logging
 import os
@@ -68,9 +69,6 @@ class App(qt.QMainWindow):
                     if analyzer.timedOut():
                         break
 
-    def setPaused(self):
-        self.paused = not self.paused
-
     def plot(self, *_):
         if self.stack.currentIndex() == 0:
             self.plotSpectrum()
@@ -92,7 +90,7 @@ class App(qt.QMainWindow):
             self.refSpectrumPlot.setData(*spectrum)
 
     def plotIR(self):
-        if self.refAnalyzer and self.useRefBox.isChecked():
+        if self.refAnalyzer and self.useBox.currentIndex() == 0:
             analyzer = self.refAnalyzer
         else:
             analyzer = self.analyzer
@@ -131,7 +129,7 @@ class App(qt.QMainWindow):
             self.saveDir = Path(filename).parent
 
     def saveIR(self):
-        if self.refAnalyzer and self.useRefBox.isChecked():
+        if self.refAnalyzer and self.useBox.currentIndex() == 0:
             analyzer = self.refAnalyzer
         else:
             analyzer = self.analyzer
@@ -150,16 +148,6 @@ class App(qt.QMainWindow):
         if filename:
             hifi.write_wav(filename, analyzer.rate, irInv)
             self.saveDir = Path(filename).parent
-
-    def setReference(self, withRef: bool):
-        if withRef:
-            if self.analyzer:
-                self.refAnalyzer = self.analyzer
-                self.plot()
-        else:
-            self.refAnalyzer = None
-            self.refSpectrumPlot.clear()
-            self.spectrumPlotWidget.repaint()
 
     def run(self):
         """Run both the Qt and asyncio event loops."""
@@ -210,8 +198,6 @@ class App(qt.QMainWindow):
         self.spectrumSmoothing = pg.SpinBox(
             value=15, step=1, bounds=[0, 30])
         self.spectrumSmoothing.sigValueChanging.connect(self.plot)
-        refBox = qt.QCheckBox('Reference')
-        refBox.stateChanged.connect(self.setReference)
 
         hbox = qt.QHBoxLayout()
         hbox.addStretch(1)
@@ -229,8 +215,6 @@ class App(qt.QMainWindow):
         hbox.addSpacing(32)
         hbox.addWidget(qt.QLabel('Smoothing: '))
         hbox.addWidget(self.spectrumSmoothing)
-        hbox.addSpacing(32)
-        hbox.addWidget(refBox)
         hbox.addStretch(1)
         vbox.addLayout(hbox)
 
@@ -287,8 +271,11 @@ class App(qt.QMainWindow):
             value=15, step=1, bounds=[0, 30])
         self.irSmoothing.sigValueChanging.connect(self.plot)
         self.kaiserBeta.sigValueChanging.connect(self.plot)
-        self.useRefBox = qt.QCheckBox('Use reference')
-        self.useRefBox.stateChanged.connect(self.plot)
+
+        self.useBox = qt.QComboBox()
+        self.useBox.addItems(['Stored measurements', 'Last measurement'])
+        self.useBox.currentIndexChanged.connect(self.plot)
+
         exportButton = qt.QPushButton('Export as WAV')
         exportButton.setShortcut('E')
         exportButton.setToolTip('<Key E>')
@@ -308,10 +295,10 @@ class App(qt.QMainWindow):
         hbox.addWidget(qt.QLabel('Smoothing: '))
         hbox.addWidget(self.irSmoothing)
         hbox.addSpacing(32)
-        hbox.addWidget(self.useRefBox)
-        hbox.addSpacing(32)
-        hbox.addWidget(exportButton)
+        hbox.addWidget(qt.QLabel('Use: '))
+        hbox.addWidget(self.useBox)
         hbox.addStretch(1)
+        hbox.addWidget(exportButton)
         vbox.addLayout(hbox)
 
         return topWidget
@@ -379,20 +366,49 @@ class App(qt.QMainWindow):
         correctionsButton = qt.QPushButton('Corrections...')
         correctionsButton.pressed.connect(correctionsPressed)
 
+        def storeButtonClicked():
+            if self.analyzer:
+                if self.analyzer.isCompatible(self.refAnalyzer):
+                    self.refAnalyzer.addMeasurements(self.analyzer)
+                else:
+                    self.refAnalyzer = copy.copy(self.analyzer)
+                measurementsLabel.setText(
+                    f'Measurements: {self.refAnalyzer.numMeasurements}')
+                self.plot()
+
+        def clearButtonClicked():
+            self.refAnalyzer = None
+            self.refSpectrumPlot.clear()
+            measurementsLabel.setText('Measurements: ')
+            self.plot()
+
+        measurementsLabel = qt.QLabel('Measurements: ')
+
+        storeButton = qt.QPushButton('Store')
+        storeButton.clicked.connect(storeButtonClicked)
+        storeButton.setShortcut('S')
+        storeButton.setToolTip('<Key S>')
+
+        clearButton = qt.QPushButton('Clear')
+        clearButton.clicked.connect(clearButtonClicked)
+        clearButton.setShortcut('C')
+        clearButton.setToolTip('<Key C>')
+
         screenshotButton = qt.QPushButton('Screenshot')
-        screenshotButton.setShortcut('S')
-        screenshotButton.setToolTip('<Key S>')
         screenshotButton.clicked.connect(self.screenshot)
+
+        def setPaused():
+            self.paused = not self.paused
 
         pauseButton = qt.QPushButton('Pause')
         pauseButton.setShortcut('Space')
         pauseButton.setToolTip('<Space>')
         pauseButton.setFocusPolicy(qtcore.Qt.FocusPolicy.NoFocus)
-        pauseButton.clicked.connect(self.setPaused)
+        pauseButton.clicked.connect(setPaused)
 
         exitButton = qt.QPushButton('Exit')
-        exitButton.setShortcut('Esc')
-        exitButton.setToolTip('<Esc>')
+        exitButton.setShortcut('Ctrl+Q')
+        exitButton.setToolTip('Ctrl+Q')
         exitButton.clicked.connect(self.close)
 
         hbox = qt.QHBoxLayout()
@@ -401,6 +417,10 @@ class App(qt.QMainWindow):
         hbox.addWidget(irButton)
         hbox.addSpacing(64)
         hbox.addWidget(correctionsButton)
+        hbox.addStretch(1)
+        hbox.addWidget(measurementsLabel)
+        hbox.addWidget(storeButton)
+        hbox.addWidget(clearButton)
         hbox.addStretch(1)
         hbox.addWidget(screenshotButton)
         hbox.addSpacing(32)

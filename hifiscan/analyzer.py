@@ -1,4 +1,5 @@
 import array
+import types
 from functools import lru_cache
 from typing import List, NamedTuple, Optional, Tuple
 
@@ -44,10 +45,10 @@ class Analyzer:
     x: np.ndarray
     y: np.ndarray
     rate: int
-    secs: float
     fmin: float
     fmax: float
     time: float
+    numMeasurements: int
 
     def __init__(
             self, f0: int, f1: int, secs: float, rate: int, ampl: float,
@@ -58,18 +59,41 @@ class Analyzer:
             self.chirp,
             np.zeros(int(self.MAX_DELAY_SECS * rate))
         ])
-        self.secs = self.x.size / rate
+        self.y = np.zeros(self.x.size)
         self.rate = rate
         self.fmin = min(f0, f1)
         self.fmax = max(f0, f1)
         self.time = 0
+        self.numMeasurements = 0
         self._calibration = calibration
         self._target = target
+        self._sumH = np.zeros(self.X().size)
 
-        # Cache the methods in a way that allows garbage collection of self.
-        for meth in ['X', 'Y', 'H', 'H2', 'h', 'h_inv', 'spectrum',
+    def setCaching(self):
+        """
+        Cache the main methods in a way that allows garbage collection of self.
+        Calling this method again will in effect clear the previous caching.
+        """
+        for name in ['X', 'Y', 'calcH', 'H', 'H2', 'h', 'h_inv', 'spectrum',
                      'frequency', 'calibration', 'target']:
-            setattr(self, meth, lru_cache(getattr(self, meth)))
+            unbound = getattr(Analyzer, name)
+            bound = types.MethodType(unbound, self)
+            setattr(self, name, lru_cache(bound))
+
+    def addMeasurements(self, analyzer):
+        """Add measurements from other analyzer to this one."""
+        if not self.isCompatible(analyzer):
+            raise ValueError('Incompatible analyzers')
+        self._sumH = self._sumH + analyzer._sumH
+        self.numMeasurements += analyzer.numMeasurements
+        self.setCaching()
+
+    def isCompatible(self, analyzer):
+        """
+        See if other analyzer is compatible for adding measurement to this one.
+        """
+        return isinstance(analyzer, Analyzer) and np.array_equal(
+            analyzer.x, self.x)
 
     def findMatch(self, recording: array.array) -> bool:
         """
@@ -84,15 +108,19 @@ class Analyzer:
             corr = np.fft.ifft(X * Y).real
             idx = int(corr.argmax()) - self.x.size + 1
             if idx >= 0:
-                self.y = np.array(recording[idx:idx + self.x.size], 'f')
+                self.y = np.array(recording[idx:idx + self.x.size])
+                self.numMeasurements += 1
+                self._sumH += self.calcH()
+                self.setCaching()
                 return True
         return False
 
     def timedOut(self) -> bool:
         """See if time to find a match has exceeded the timeout limit."""
-        return self.time > self.secs + self.TIMEOUT_SECS
+        return self.time > self.x.size / self.rate + self.TIMEOUT_SECS
 
     def frequency(self) -> np.ndarray:
+        """Frequency array, from 0 to the Nyquist frequency."""
         return np.linspace(0, self.rate // 2, self.X().size)
 
     def freqRange(self, size: int = 0) -> slice:
@@ -107,9 +135,11 @@ class Analyzer:
         return slice(i0, i1 + 1)
 
     def calibration(self) -> Optional[np.ndarray]:
+        """Interpolated calibration curve."""
         return self.interpolateCorrection(self._calibration)
 
     def target(self) -> Optional[np.ndarray]:
+        """Interpolated target curve."""
         return self.interpolateCorrection(self._target)
 
     def interpolateCorrection(self, corr: Correction) -> Optional[np.ndarray]:
@@ -134,10 +164,9 @@ class Analyzer:
     def Y(self) -> np.ndarray:
         return np.fft.rfft(self.y)
 
-    def H(self) -> XY:
+    def calcH(self) -> np.ndarray:
         """
-        Calculate complex-valued transfer function H in the
-        frequency domain.
+        Calculate transfer function H of the last measurement.
         """
         X = self.X()
         Y = self.Y()
@@ -145,13 +174,20 @@ class Analyzer:
         H = Y * np.conj(X) / (np.abs(X) ** 2 + 1e-3)
         if self._calibration:
             H *= 10 ** (-self.calibration() / 20)
+        H = np.abs(H)
+        return H
+
+    def H(self) -> XY:
+        """
+        Transfer function H  averaged over all measurements.
+        """
         freq = self.frequency()
+        H = self._sumH / (self.numMeasurements or 1)
         return XY(freq, H)
 
-    def H2(self, smoothing: float):
+    def H2(self, smoothing: float) -> XY:
         """Calculate smoothed squared transfer function |H|^2."""
         freq, H = self.H()
-        H = np.abs(H)
         r = self.freqRange()
         H2 = np.empty_like(H)
         # Perform smoothing on the squared amplitude.
