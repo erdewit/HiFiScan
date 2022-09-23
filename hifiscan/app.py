@@ -100,8 +100,9 @@ class App(qt.QMainWindow):
         dbRange = self.dbRange.value()
         beta = self.kaiserBeta.value()
         smoothing = self.irSmoothing.value()
+        minPhase = self.typeBox.currentIndex() == 1
 
-        t, ir = analyzer.h_inv(secs, dbRange, beta, smoothing)
+        t, ir = analyzer.h_inv(secs, dbRange, beta, smoothing, minPhase)
         self.irPlot.setData(1000 * t, ir)
 
         logIr = np.log10(1e-8 + np.abs(ir))
@@ -139,9 +140,11 @@ class App(qt.QMainWindow):
         db = int(self.dbRange.value())
         beta = int(self.kaiserBeta.value())
         smoothing = int(self.irSmoothing.value())
-        _, irInv = analyzer.h_inv(ms / 1000, db, beta, smoothing)
+        minPhase = self.typeBox.currentIndex() == 1
+        _, irInv = analyzer.h_inv(ms / 1000, db, beta, smoothing, minPhase)
 
-        name = f'IR_{ms}ms_{db}dB_{beta}t_{smoothing}s.wav'
+        name = (f'IR_{ms}ms_{db}dB_{beta}t_{smoothing}s'
+                f'{"_minphase" if minPhase else ""}.wav')
         filename, _ = qt.QFileDialog.getSaveFileName(
             self, 'Save inverse impulse response',
             str(self.saveDir / name), 'WAV (*.wav)')
@@ -276,6 +279,10 @@ class App(qt.QMainWindow):
         self.useBox.addItems(['Stored measurements', 'Last measurement'])
         self.useBox.currentIndexChanged.connect(self.plot)
 
+        self.typeBox = qt.QComboBox()
+        self.typeBox.addItems(['Zero phase', 'Zero latency'])
+        self.typeBox.currentIndexChanged.connect(self.plot)
+
         exportButton = qt.QPushButton('Export as WAV')
         exportButton.setShortcut('E')
         exportButton.setToolTip('<Key E>')
@@ -294,6 +301,9 @@ class App(qt.QMainWindow):
         hbox.addSpacing(32)
         hbox.addWidget(qt.QLabel('Smoothing: '))
         hbox.addWidget(self.irSmoothing)
+        hbox.addSpacing(32)
+        hbox.addWidget(qt.QLabel('Type: '))
+        hbox.addWidget(self.typeBox)
         hbox.addSpacing(32)
         hbox.addWidget(qt.QLabel('Use: '))
         hbox.addWidget(self.useBox)
