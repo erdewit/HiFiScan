@@ -23,7 +23,7 @@ def write_wav(path: str, data: np.ndarray, rate: int, width: int = 4):
       rate: Sample rate in Hz.
       width: Sample width in bytes.
     """
-    if not width in [1, 2, 3, 4]:
+    if width not in [1, 2, 3, 4]:
         raise ValueError(f'Invalid sample width: {width}')
     data = np.asarray(data)
     ch = 1 if len(data.shape) < 2 else len(data)

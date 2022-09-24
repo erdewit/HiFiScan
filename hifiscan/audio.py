@@ -85,5 +85,3 @@ class PlayItem:
         chunk = self.sound[self.index:idx]
         self.index = idx
         return chunk
-
-
