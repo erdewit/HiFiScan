@@ -1,11 +1,13 @@
 import array
 import types
 from functools import lru_cache
-from typing import List, NamedTuple, Optional, Tuple
+from typing import NamedTuple, Optional, Tuple
 
 import numpy as np
 from numba import njit
 from numpy.fft import fft, ifft, irfft, rfft
+
+from hifiscan.io_ import Correction
 
 
 class XY(NamedTuple):
@@ -13,9 +15,6 @@ class XY(NamedTuple):
 
     x: np.ndarray
     y: np.ndarray
-
-
-Correction = List[Tuple[float, float]]
 
 
 class Analyzer:

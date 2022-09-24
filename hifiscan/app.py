@@ -149,7 +149,8 @@ class App(qt.QMainWindow):
             self, 'Save inverse impulse response',
             str(self.saveDir / name), 'WAV (*.wav)')
         if filename:
-            hifi.write_wav(filename, analyzer.rate, irInv)
+            data = np.vstack([irInv, irInv])
+            hifi.write_wav(filename, data, analyzer.rate)
             self.saveDir = Path(filename).parent
 
     def run(self):

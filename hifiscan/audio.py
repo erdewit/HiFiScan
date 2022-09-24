@@ -1,6 +1,4 @@
 import array
-import sys
-import wave
 from collections import deque
 from dataclasses import dataclass
 from typing import AsyncIterator, Deque
@@ -8,8 +6,6 @@ from typing import AsyncIterator, Deque
 import eventkit as ev
 import numpy as np
 import sounddevice as sd
-
-from hifiscan.analyzer import Correction
 
 
 class Audio:
@@ -91,30 +87,3 @@ class PlayItem:
         return chunk
 
 
-def write_wav(path: str, rate: int, sound: np.ndarray):
-    """
-    Write a 1-channel float array with values between -1 and 1
-    as a 32 bit stereo wave file.
-    """
-    scaling = 2**31 - 1
-    mono = np.asarray(sound * scaling, np.int32)
-    if sys.byteorder == 'big':
-        mono = mono.byteswap()
-    stereo = np.vstack([mono, mono]).flatten(order='F')
-    with wave.open(path, 'wb') as wav:
-        wav.setnchannels(2)
-        wav.setsampwidth(4)
-        wav.setframerate(rate)
-        wav.writeframes(stereo.tobytes())
-
-
-def read_correction(path: str) -> Correction:
-    corr = []
-    with open(path, 'r') as f:
-        for line in f.readlines():
-            try:
-                freq, db = line.split()
-                corr.append((float(freq), float(db)))
-            except ValueError:
-                pass
-    return corr
