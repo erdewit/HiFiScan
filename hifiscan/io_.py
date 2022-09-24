@@ -58,20 +58,22 @@ def read_wav(path: str) -> Sound:
         frames = wav.readframes(n)
     if width == 4:
         buff = np.frombuffer(frames, np.int32)
-        data = buff.astype('f') / np.float32(2 ** 31 - 1)
+        norm = 2 ** 31 - 1
     elif width == 3:
         buff = np.frombuffer(frames, np.uint8)
         uints = buff[0::3].astype(np.uint32) << 8 \
             | buff[1::3].astype(np.uint32) << 16 \
             | buff[2::3].astype(np.uint32) << 24
-        data = uints.view(np.int32).astype('f') / np.float32(
-            2 ** 31 - 2 ** 8)
+        buff = uints.view(np.int32)
+        norm = 2 ** 31 - 2 ** 8
     elif width == 2:
         buff = np.frombuffer(frames, np.int16)
-        data = buff.astype('f') / np.float32(2 ** 15 - 1)
+        norm = 2 ** 15 - 1
     else:
         buff = np.frombuffer(frames, np.int8)
-        data = buff.astype('f') / np.float32(2 ** 7 - 1)
+        norm = 2 ** 7 - 1
+    data = buff.astype('f')
+    data /= np.float32(norm)
     data = data.reshape((-1, ch)).T
     return Sound(data, rate, width)
 
