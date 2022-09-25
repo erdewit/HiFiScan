@@ -5,6 +5,7 @@ from typing import AsyncIterator, Deque
 
 import eventkit as ev
 import numpy as np
+import numpy.typing as npt
 import sounddevice as sd
 
 
@@ -21,7 +22,7 @@ class Audio:
         self.recorded = ev.Event()
         self.playQ: Deque[PlayItem] = deque()
         self.stream = sd.Stream(
-            channels=1,
+            channels=2,
             callback=self._onStream)
         self.stream.start()
         self.rate = self.stream.samplerate
@@ -42,16 +43,19 @@ class Audio:
         idx = 0
         while self.playQ and idx < frames:
             playItem = self.playQ[0]
-            chunk = playItem.pop(frames - idx)
-            idx2 = idx + chunk.size
-            out_data[idx:idx2, 0] = chunk
+            chunk = playItem.pop(frames - idx).T
+            idx2 = idx + len(chunk)
+            out_data[idx:idx2, :] = chunk
             idx = idx2
             if not playItem.remaining():
                 self.playQ.popleft()
-        self.recorded.emit_threadsafe(in_data.copy())
+        self.recorded.emit_threadsafe(in_data.copy().T)
 
-    def play(self, sound: np.ndarray):
+    def play(self, sound: npt.ArrayLike):
         """Add a sound to the play queue."""
+        sound = np.asarray(sound)
+        if len(sound.shape) == 1:
+            sound = np.vstack([sound, sound])
         self.playQ.append(PlayItem(sound))
 
     def cancelPlay(self):
@@ -69,7 +73,8 @@ class Audio:
         """
         recording = array.array('f')
         return self.recorded.map(
-            recording.extend).constant(recording).aiter(skip_to_last=True)
+            lambda rec: recording.extend(0.5 * (rec[0] + rec[1]))) \
+            .constant(recording).aiter(skip_to_last=True)
 
 
 @dataclass
@@ -82,6 +87,6 @@ class PlayItem:
 
     def pop(self, num: int) -> np.ndarray:
         idx = self.index + min(num, self.remaining())
-        chunk = self.sound[self.index:idx]
+        chunk = self.sound[:, self.index:idx]
         self.index = idx
         return chunk

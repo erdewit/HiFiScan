@@ -54,10 +54,15 @@ class App(qt.QMainWindow):
                 if self.paused or lo >= hi or secs <= 0 or not ampl:
                     await asyncio.sleep(0.1)
                     continue
+                ch = self.channelsBox.currentIndex()
 
                 analyzer = hifi.Analyzer(lo, hi, secs, audio.rate, ampl,
                                          self.calibration, self.target)
-                audio.play(analyzer.chirp)
+                sound = analyzer.chirp
+                if ch:
+                    silence = np.zeros_like(sound)
+                    sound = [sound, silence] if ch == 1 else [silence, sound]
+                audio.play(sound)
                 async for recording in audio.record():
                     if self.paused:
                         audio.cancelPlay()
@@ -199,6 +204,8 @@ class App(qt.QMainWindow):
             value=1.0, step=0.1, bounds=[0.1, 30], suffix='s')
         self.ampl = pg.SpinBox(
             value=40, step=1, bounds=[0, 100], suffix='%')
+        self.channelsBox = qt.QComboBox()
+        self.channelsBox.addItems(['Stereo', 'Left', 'Right'])
         self.spectrumSmoothing = pg.SpinBox(
             value=15, step=1, bounds=[0, 30])
         self.spectrumSmoothing.sigValueChanging.connect(self.plot)
@@ -216,6 +223,7 @@ class App(qt.QMainWindow):
         hbox.addSpacing(32)
         hbox.addWidget(qt.QLabel('Amplitude: '))
         hbox.addWidget(self.ampl)
+        hbox.addWidget(self.channelsBox)
         hbox.addSpacing(32)
         hbox.addWidget(qt.QLabel('Smoothing: '))
         hbox.addWidget(self.spectrumSmoothing)
