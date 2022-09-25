@@ -223,7 +223,7 @@ class Analyzer:
             dbRange: float = 24,
             kaiserBeta: float = 5,
             smoothing: float = 0,
-            minPhase: bool = False) -> XY:
+            causality: float = 0) -> XY:
         """
         Calculate the inverse impulse response.
 
@@ -232,7 +232,7 @@ class Analyzer:
             dbRange: Maximum attenuation in dB (power).
             kaiserBeta: Shape parameter of the Kaiser tapering window.
             smoothing: Strength of frequency-dependent smoothing.
-            minPhase: Use minimal-phase if True or linear-phase if False
+            causality: 0 = linear-phase a-causal, 1 = minimal-phase causal.
         """
         freq, H2 = self.H2(smoothing)
         # Apply target curve.
@@ -240,9 +240,6 @@ class Analyzer:
             H2 = H2 * 10 ** (-self.target() / 10)
         # Re-sample to halve the number of samples needed.
         n = int(secs * self.rate / 2)
-        if minPhase:
-            # Later minimum phase filter will halve the size.
-            n *= 2
         H = resample(H2, n) ** 0.5
         # Accommodate the given dbRange from the top.
         H /= H.max()
@@ -258,11 +255,11 @@ class Analyzer:
         z = irfft(Z)
         z = z[:-1]
         z *= window(z.size, kaiserBeta)
-        if minPhase:
-            z = minimum_phase(z)
+        if causality:
+            z = transform_causality(z, causality)
 
         # Normalize using a fractal dimension for scaling.
-        dim = 1.25 if minPhase else 1.5
+        dim = 1.5 - 0.25 * causality
         norm = (np.abs(z) ** dim).sum() ** (1 / dim)
         z /= norm
 
@@ -396,31 +393,38 @@ def taper(y0: float, y1: float, size: int) -> np.ndarray:
     return tp
 
 
-def minimum_phase(x: np.ndarray) -> np.ndarray:
+def transform_causality(x: np.ndarray, causality: float = 1) -> np.ndarray:
     """
-    Homomorphic filter to create a minimum-phase impulse from the given
-    symmetric odd-sized linear-phase impulse.
+    Homomorphic filter to create a new impulse of desired causality from
+    the given impulse.
+
+    Params:
+      causality: 0 = linear-phase, 1 = minimal-phase and
+        in-between values smoothly transition between these two.
 
     https://www.rle.mit.edu/dspg/documents/AVOHomoorphic75.pdf
     https://www.katjaas.nl/minimumphase/minimumphase.html
     """
-    mid = x.size // 2
-    if not (x.size % 2 and np.allclose(x[:mid], x[-1:mid:-1])):
-        raise ValueError('Symmetric odd-sized array required')
     # Go to frequency domain, oversampling 4x to avoid aliasing.
     X = np.abs(fft(x, 4 * x.size))
     # Non-linear mapping.
     XX = np.log(np.fmax(X, 1e-9))
-    # Linear filter selects minimum phase part in the complex cepstrum.
+    # Linear filter to apply the desired amount of causal (right)
+    # and anti-causal (left) parts to the complex cepstrum.
     xx = ifft(XX).real
+    mid = x.size // 2
+    left = slice(-1, -mid - 1, -1)
+    right = slice(1, mid + 1)
     yy = np.zeros_like(xx)
     yy[0] = xx[0]
-    yy[1:mid + 1] = 2 * xx[1:mid + 1]
+    yy[left] = (1 - causality) * xx[right]
+    yy[right] = (1 + causality) * xx[right]
     YY = fft(yy)
     # Non-linear mapping back.
     Y = np.exp(YY)
     # Go back to time domain.
     y = ifft(Y).real
-    # Take the valid part.
-    y_min = y[:mid + 1]
-    return y_min
+    # Shift and take the valid part.
+    y = np.roll(y, int((1 - causality) * x.size / 2))
+    y = y[:int(x.size * (1 - causality / 2))]
+    return y
