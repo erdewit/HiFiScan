@@ -145,7 +145,7 @@ class App(qt.QMainWindow):
         db = int(self.dbRange.value())
         beta = int(self.kaiserBeta.value())
         smoothing = int(self.irSmoothing.value())
-        causality = self.causality.value()
+        causality = int(self.causality.value())
         _, irInv = analyzer.h_inv(
             ms / 1000, db, beta, smoothing, causality / 100)
 
