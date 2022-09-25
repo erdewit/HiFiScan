@@ -100,9 +100,9 @@ class App(qt.QMainWindow):
         dbRange = self.dbRange.value()
         beta = self.kaiserBeta.value()
         smoothing = self.irSmoothing.value()
-        minPhase = self.typeBox.currentIndex() == 1
+        causality = self.causality.value() / 100
 
-        t, ir = analyzer.h_inv(secs, dbRange, beta, smoothing, minPhase)
+        t, ir = analyzer.h_inv(secs, dbRange, beta, smoothing, causality)
         self.irPlot.setData(1000 * t, ir)
 
         logIr = np.log10(1e-8 + np.abs(ir))
@@ -140,11 +140,11 @@ class App(qt.QMainWindow):
         db = int(self.dbRange.value())
         beta = int(self.kaiserBeta.value())
         smoothing = int(self.irSmoothing.value())
-        minPhase = self.typeBox.currentIndex() == 1
-        _, irInv = analyzer.h_inv(ms / 1000, db, beta, smoothing, minPhase)
+        causality = self.causality.value()
+        _, irInv = analyzer.h_inv(
+            ms / 1000, db, beta, smoothing, causality / 100)
 
-        name = (f'IR_{ms}ms_{db}dB_{beta}t_{smoothing}s'
-                f'{"_minphase" if minPhase else ""}.wav')
+        name = f'IR_{ms}ms_{db}dB_{beta}t_{smoothing}s_{causality}c.wav'
         filename, _ = qt.QFileDialog.getSaveFileName(
             self, 'Save inverse impulse response',
             str(self.saveDir / name), 'WAV (*.wav)')
@@ -196,7 +196,7 @@ class App(qt.QMainWindow):
         self.hi = pg.SpinBox(
             value=20000, step=100, bounds=[5, 40000], suffix='Hz')
         self.secs = pg.SpinBox(
-            value=1.0, step=0.1, bounds=[0.1, 10], suffix='s')
+            value=1.0, step=0.1, bounds=[0.1, 30], suffix='s')
         self.ampl = pg.SpinBox(
             value=40, step=1, bounds=[0, 100], suffix='%')
         self.spectrumSmoothing = pg.SpinBox(
@@ -271,18 +271,20 @@ class App(qt.QMainWindow):
         self.dbRange.sigValueChanging.connect(self.plot)
         self.kaiserBeta = pg.SpinBox(
             value=5, step=1, bounds=[0, 100])
+        self.kaiserBeta.sigValueChanging.connect(self.plot)
         self.irSmoothing = pg.SpinBox(
             value=15, step=1, bounds=[0, 30])
         self.irSmoothing.sigValueChanging.connect(self.plot)
-        self.kaiserBeta.sigValueChanging.connect(self.plot)
+
+        causalityLabel = qt.QLabel('Causality: ')
+        causalityLabel.setToolTip('0% = Zero phase, 100% = Zero lateny')
+        self.causality = pg.SpinBox(
+            value=0, step=5, bounds=[0, 100], suffix='%')
+        self.causality.sigValueChanging.connect(self.plot)
 
         self.useBox = qt.QComboBox()
         self.useBox.addItems(['Stored measurements', 'Last measurement'])
         self.useBox.currentIndexChanged.connect(self.plot)
-
-        self.typeBox = qt.QComboBox()
-        self.typeBox.addItems(['Zero phase', 'Zero latency'])
-        self.typeBox.currentIndexChanged.connect(self.plot)
 
         exportButton = qt.QPushButton('Export as WAV')
         exportButton.setShortcut('E')
@@ -303,8 +305,8 @@ class App(qt.QMainWindow):
         hbox.addWidget(qt.QLabel('Smoothing: '))
         hbox.addWidget(self.irSmoothing)
         hbox.addSpacing(32)
-        hbox.addWidget(qt.QLabel('Type: '))
-        hbox.addWidget(self.typeBox)
+        hbox.addWidget(causalityLabel)
+        hbox.addWidget(self.causality)
         hbox.addSpacing(32)
         hbox.addWidget(qt.QLabel('Use: '))
         hbox.addWidget(self.useBox)
