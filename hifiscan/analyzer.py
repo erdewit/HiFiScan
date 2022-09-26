@@ -424,7 +424,18 @@ def transform_causality(x: np.ndarray, causality: float = 1) -> np.ndarray:
     Y = np.exp(YY)
     # Go back to time domain.
     y = ifft(Y).real
-    # Shift and take the valid part.
-    y = np.roll(y, int((1 - causality) * x.size / 2))
-    y = y[:int(x.size * (1 - causality / 2))]
+
+    # Infer the original linear-phase filter size.
+    if np.allclose(x[0:mid + 1], x[-1:mid - 1:-1]):
+        # x is symmetric, so it's linear-phase.
+        orig_sz = x.size
+    else:
+        # Estimate based on location of peak.
+        p = x.argmax()
+        orig_sz = 2 * (x.size - p) - 1
+        # src_causality = (3 - (x.size + p) / (x.size - p)) / 2
+    # Roll and resize.
+    y = np.roll(y, int(orig_sz * (1 - causality) / 2))
+    sz = int(0.5 + orig_sz * (1 - causality / 2))
+    y = y[:sz]
     return y
