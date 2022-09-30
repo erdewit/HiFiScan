@@ -3,6 +3,7 @@ import copy
 import datetime as dt
 import logging
 import os
+import pickle
 import signal
 import sys
 from pathlib import Path
@@ -19,6 +20,16 @@ class App(qt.QMainWindow):
 
     def __init__(self):
         super().__init__()
+
+        self.paused = False
+        self.analyzer = None
+        self.refAnalyzer = None
+        self.calibration = None
+        self.target = None
+        self.saveDir = Path.home()
+        self.loop = asyncio.get_event_loop_policy().get_event_loop()
+        self.task = self.loop.create_task(wrap_coro(self.analyze()))
+
         self.setWindowTitle('HiFi Scan')
         topWidget = qt.QWidget()
         self.setCentralWidget(topWidget)
@@ -31,16 +42,6 @@ class App(qt.QMainWindow):
         self.stack.currentChanged.connect(self.plot)
         vbox.addWidget(self.stack)
         vbox.addWidget(self.createSharedControls())
-
-        self.paused = False
-        self.analyzer = None
-        self.refAnalyzer = None
-        self.calibration = None
-        self.target = None
-        self.saveDir = Path.home()
-        self.loop = asyncio.get_event_loop_policy().get_event_loop()
-        self.task = self.loop.create_task(wrap_coro(self.analyze()))
-
         self.resize(1800, 900)
         self.show()
 
@@ -126,8 +127,8 @@ class App(qt.QMainWindow):
             self.targetSimPlot.clear()
 
     def screenshot(self):
-        timestamp = dt.datetime.now().strftime('%Y%m%d_%H%M%S')
-        name = f'hifiscan_{timestamp}.png'
+        timestamp = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        name = f'HiFiScan {timestamp}.png'
         filename, _ = qt.QFileDialog.getSaveFileName(
             self, 'Save screenshot', str(self.saveDir / name), 'PNG (*.png)')
         if filename:
@@ -393,17 +394,21 @@ class App(qt.QMainWindow):
                     self.refAnalyzer.addMeasurements(self.analyzer)
                 else:
                     self.refAnalyzer = copy.copy(self.analyzer)
-                measurementsLabel.setText(
-                    f'Measurements: {self.refAnalyzer.numMeasurements}')
+                setMeasurementsText()
                 self.plot()
 
         def clearButtonClicked():
             self.refAnalyzer = None
             self.refSpectrumPlot.clear()
-            measurementsLabel.setText('Measurements: ')
+            setMeasurementsText()
             self.plot()
 
-        measurementsLabel = qt.QLabel('Measurements: ')
+        def setMeasurementsText():
+            num = self.refAnalyzer.numMeasurements if self.refAnalyzer else 0
+            measurementsLabel.setText(f'Measurements: {num if num else ""}')
+
+        measurementsLabel = qt.QLabel('')
+        setMeasurementsText()
 
         storeButton = qt.QPushButton('Store')
         storeButton.clicked.connect(storeButtonClicked)
@@ -414,6 +419,52 @@ class App(qt.QMainWindow):
         clearButton.clicked.connect(clearButtonClicked)
         clearButton.setShortcut('C')
         clearButton.setToolTip('<Key C>')
+
+        def load():
+            path, _ = qt.QFileDialog.getOpenFileName(
+                self, 'Load measurements', str(self.saveDir))
+            if path:
+                with open(path, 'rb') as f:
+                    self.refAnalyzer = pickle.load(f)
+                setMeasurementsText()
+                self.plot()
+
+        def loadAdd():
+            path, _ = qt.QFileDialog.getOpenFileName(
+                self, 'Load and Add measurements', str(self.saveDir))
+            if path:
+                with open(path, 'rb') as f:
+                    analyzer: hifi.Analyzer = pickle.load(f)
+                if analyzer and analyzer.isCompatible(self.refAnalyzer):
+                    self.refAnalyzer.addMeasurements(analyzer)
+                else:
+                    self.refAnalyzer = analyzer
+                setMeasurementsText()
+                self.plot()
+
+        def save():
+            analyzer = self.refAnalyzer or self.analyzer
+            timestamp = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            name = f'Measurements: {analyzer.numMeasurements}, {timestamp}'
+            path, _ = qt.QFileDialog.getSaveFileName(
+                self, 'Save measurements',
+                str(self.saveDir / name))
+            if path:
+                self.saveDir = Path(path).parent
+                with open(path, 'wb') as f:
+                    pickle.dump(analyzer, f)
+                self.plot()
+
+        def filePressed():
+            fileMenu.popup(fileButton.mapToGlobal(qtcore.QPoint(0, 0)))
+
+        fileMenu = qt.QMenu()
+        fileMenu.addAction('Load', load)
+        fileMenu.addAction('Load and Add', loadAdd)
+        fileMenu.addAction('Save', save)
+
+        fileButton = qt.QPushButton('File...')
+        fileButton.clicked.connect(filePressed)
 
         screenshotButton = qt.QPushButton('Screenshot')
         screenshotButton.clicked.connect(self.screenshot)
@@ -442,6 +493,7 @@ class App(qt.QMainWindow):
         hbox.addWidget(measurementsLabel)
         hbox.addWidget(storeButton)
         hbox.addWidget(clearButton)
+        hbox.addWidget(fileButton)
         hbox.addStretch(1)
         hbox.addWidget(screenshotButton)
         hbox.addSpacing(32)

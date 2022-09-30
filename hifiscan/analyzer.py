@@ -4,8 +4,13 @@ from functools import lru_cache
 from typing import NamedTuple, Optional, Tuple
 
 import numpy as np
-from numba import njit
 from numpy.fft import fft, ifft, irfft, rfft
+
+try:
+    from numba import njit
+except ImportError:
+    def njit(f):
+        return f
 
 from hifiscan.io_ import Correction
 
@@ -39,15 +44,19 @@ class Analyzer:
 
     MAX_DELAY_SECS = 0.1
     TIMEOUT_SECS = 1.0
+    CACHED_METHODS = [
+        'X', 'Y', 'calcH', 'H', 'H2', 'h', 'h_inv', 'spectrum',
+        'frequency', 'calibration', 'target']
 
     chirp: np.ndarray
     x: np.ndarray
     y: np.ndarray
+    sumH: np.ndarray
+    numMeasurements: int
     rate: int
     fmin: float
     fmax: float
     time: float
-    numMeasurements: int
 
     def __init__(
             self, f0: int, f1: int, secs: float, rate: int, ampl: float,
@@ -63,18 +72,21 @@ class Analyzer:
         self.fmin = min(f0, f1)
         self.fmax = max(f0, f1)
         self.time = 0
+        self.sumH = np.zeros(self.X().size)
         self.numMeasurements = 0
         self._calibration = calibration
         self._target = target
-        self._sumH = np.zeros(self.X().size)
+
+    def __getstate__(self):
+        return {k: v for k, v in self.__dict__.items()
+                if k not in self.CACHED_METHODS}
 
     def setCaching(self):
         """
         Cache the main methods in a way that allows garbage collection of self.
         Calling this method again will in effect clear the previous caching.
         """
-        for name in ['X', 'Y', 'calcH', 'H', 'H2', 'h', 'h_inv', 'spectrum',
-                     'frequency', 'calibration', 'target']:
+        for name in self.CACHED_METHODS:
             unbound = getattr(Analyzer, name)
             bound = types.MethodType(unbound, self)
             setattr(self, name, lru_cache(bound))
@@ -83,7 +95,7 @@ class Analyzer:
         """Add measurements from other analyzer to this one."""
         if not self.isCompatible(analyzer):
             raise ValueError('Incompatible analyzers')
-        self._sumH = self._sumH + analyzer._sumH
+        self.sumH = self.sumH + analyzer.sumH
         self.numMeasurements += analyzer.numMeasurements
         self.setCaching()
 
@@ -109,7 +121,7 @@ class Analyzer:
             if idx >= 0:
                 self.y = np.array(recording[idx:idx + self.x.size])
                 self.numMeasurements += 1
-                self._sumH += self.calcH()
+                self.sumH += self.calcH()
                 self.setCaching()
                 return True
         return False
@@ -181,7 +193,7 @@ class Analyzer:
         Transfer function H  averaged over all measurements.
         """
         freq = self.frequency()
-        H = self._sumH / (self.numMeasurements or 1)
+        H = self.sumH / (self.numMeasurements or 1)
         return XY(freq, H)
 
     def H2(self, smoothing: float) -> XY:
