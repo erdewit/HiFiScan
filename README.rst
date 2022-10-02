@@ -7,11 +7,11 @@ The goal of HiFiScan is to help equalize an audio system to get
 the best possible audio quality from it.
 There are two ways to do this:
 
-1. Manual: The realtime frequency spectrum is displayed and
+1. Manual: The realtime frequency response is displayed and
 the peaks and troughs can be interactively equalized away.
 
 2. Automatic: The frequency response is measured and a correction
-is calculated. This correction is a phase-neutral finite impulse
+is calculated. This correction is by default a phase-neutral finite impulse
 response (FIR) that can be imported into most equalizer programs.
 
 The measuring is done by playing a "chirp" sound that sweeps
@@ -96,7 +96,7 @@ and then "Load"):
 .. image:: images/Convolver.png
 
 We go back to the spectrum measurement and store the uncorrected
-spectrum with the "Store" button (to compare with later measurements).
+spectrum with the **Store** button (to compare with later measurements).
 More measurements can be stored as well, for example where the microphone
 is placed in different locatations, The total average of the stored
 measurements is shown in orange
@@ -277,6 +277,31 @@ and in cyan the reshaped spectrum that tries to follow the target curve:
 .. |License| image:: https://img.shields.io/badge/license-BSD-blue.svg
    :alt:
 
+Causality
+---------
+
+The default is to create a phase-neutral (aka linear-phase)
+impulse response. It's also possible to create a minimum-phase response.
+Even everything in between is possible. This is done with the **Causality**
+parameter, where 0% is phase-neutral and 100% is minimum-phase.
+Varying the causality smoothly transitions between the extremes:
+
+.. image:: images/causality-waveform.png
+
+The latency decreases proportional to the causality.
+At 100% the response becomes zero-latency and purely causal, where only the current
+and later sound samples are used. The pre-echo is eliminated at the price of
+twice the post-echo.
+Note that despite the name of "minimum-phase"
+this setting actually incurs the most phase distortion, which can get severe with
+a steep equalization.
+
+A good compromise may be a causality of 40%, which reduces the pre-echo
+by about 6 dB while not phase-smearing too much.
+Let your ears be the judge of what sounds best.
+
+A tool for changing the causality of existing impulse responses (as WAV file)
+is found in "Tools... -> Change IR causality".
 
 Disclaimer
 ==========
