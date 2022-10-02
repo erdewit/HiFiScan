@@ -153,7 +153,8 @@ class Analyzer:
         """Interpolated target curve."""
         return self.interpolateCorrection(self._target)
 
-    def interpolateCorrection(self, corr: Correction) -> Optional[np.ndarray]:
+    def interpolateCorrection(
+            self, corr: Optional[Correction]) -> Optional[np.ndarray]:
         """
         Logarithmically interpolate the correction to a full-sized array.
         """
@@ -244,7 +245,7 @@ class Analyzer:
             dbRange: Maximum attenuation in dB (power).
             kaiserBeta: Shape parameter of the Kaiser tapering window.
             smoothing: Strength of frequency-dependent smoothing.
-            causality: 0 = linear-phase a-causal, 1 = minimal-phase causal.
+            causality: 0 = linear-phase a-causal, 1 = minimum-phase causal.
         """
         freq, H2 = self.H2(smoothing)
         # Apply target curve.
@@ -411,7 +412,7 @@ def transform_causality(x: np.ndarray, causality: float = 1) -> np.ndarray:
     the given impulse.
 
     Params:
-      causality: 0 = linear-phase, 1 = minimal-phase and
+      causality: 0 = linear-phase, 1 = minimum-phase and
         in-between values smoothly transition between these two.
 
     https://www.rle.mit.edu/dspg/documents/AVOHomoorphic75.pdf

@@ -284,13 +284,13 @@ The default is to create a phase-neutral (aka linear-phase)
 impulse response. It's also possible to create a minimum-phase response.
 Even everything in between is possible. This is done with the **Causality**
 parameter, where 0% is phase-neutral and 100% is minimum-phase.
-Varying the causality smoothly transitions between the extremes:
+By varying the causality a smooth transition between the extremes is made:
 
 .. image:: images/causality-waveform.png
 
 The latency decreases proportional to the causality.
 At 100% the response becomes zero-latency and purely causal, where only the current
-and later sound samples are used. The pre-echo is eliminated at the price of
+and past sound samples are used. The pre-echo is eliminated at the price of
 twice the post-echo.
 Note that despite the name of "minimum-phase"
 this setting actually incurs the most phase distortion, which can get severe with
