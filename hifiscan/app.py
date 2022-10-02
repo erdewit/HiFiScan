@@ -405,7 +405,7 @@ class App(qt.QWidget):
                 msg.exec()
             else:
                 name = Path(inputLabel.text()).stem + \
-                       f'_{causality.value():.0f}c.wav'
+                    f'_{causality.value():.0f}c.wav'
                 path, _ = qt.QFileDialog.getSaveFileName(
                     self, 'Save Impulse Response',
                     str(self.saveDir / name), 'WAV (*.wav)')
