@@ -16,11 +16,10 @@ import pyqtgraph as pg
 import hifiscan as hifi
 
 
-class App(qt.QMainWindow):
+class App(qt.QWidget):
 
     def __init__(self):
         super().__init__()
-
         self.paused = False
         self.analyzer = None
         self.refAnalyzer = None
@@ -30,18 +29,17 @@ class App(qt.QMainWindow):
         self.loop = asyncio.get_event_loop_policy().get_event_loop()
         self.task = self.loop.create_task(wrap_coro(self.analyze()))
 
-        self.setWindowTitle('HiFi Scan')
-        topWidget = qt.QWidget()
-        self.setCentralWidget(topWidget)
-        vbox = qt.QVBoxLayout()
-        topWidget.setLayout(vbox)
-
         self.stack = qt.QStackedWidget()
-        self.stack.addWidget(self.createSpectrumWidget())
-        self.stack.addWidget(self.createIRWidget())
+        self.stack.addWidget(self.spectrumWidget())
+        self.stack.addWidget(self.irWidget())
         self.stack.currentChanged.connect(self.plot)
+
+        vbox = qt.QVBoxLayout()
         vbox.addWidget(self.stack)
-        vbox.addWidget(self.createSharedControls())
+        vbox.addWidget(self.sharedControls())
+
+        self.setLayout(vbox)
+        self.setWindowTitle('HiFi Scan')
         self.resize(1800, 900)
         self.show()
 
@@ -52,10 +50,10 @@ class App(qt.QMainWindow):
                 hi = self.hi.value()
                 secs = self.secs.value()
                 ampl = self.ampl.value() / 100
+                ch = self.channelsBox.currentIndex()
                 if self.paused or lo >= hi or secs <= 0 or not ampl:
                     await asyncio.sleep(0.1)
                     continue
-                ch = self.channelsBox.currentIndex()
 
                 analyzer = hifi.Analyzer(lo, hi, secs, audio.rate, ampl,
                                          self.calibration, self.target)
@@ -129,11 +127,11 @@ class App(qt.QMainWindow):
     def screenshot(self):
         timestamp = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         name = f'HiFiScan {timestamp}.png'
-        filename, _ = qt.QFileDialog.getSaveFileName(
+        path, _ = qt.QFileDialog.getSaveFileName(
             self, 'Save screenshot', str(self.saveDir / name), 'PNG (*.png)')
-        if filename:
-            self.stack.grab().save(filename)
-            self.saveDir = Path(filename).parent
+        if path:
+            self.stack.grab().save(path)
+            self.saveDir = Path(path).parent
 
     def saveIR(self):
         if self.refAnalyzer and self.useBox.currentIndex() == 0:
@@ -151,13 +149,13 @@ class App(qt.QMainWindow):
             ms / 1000, db, beta, smoothing, causality / 100)
 
         name = f'IR_{ms}ms_{db}dB_{beta}t_{smoothing}s_{causality}c.wav'
-        filename, _ = qt.QFileDialog.getSaveFileName(
+        path, _ = qt.QFileDialog.getSaveFileName(
             self, 'Save inverse impulse response',
             str(self.saveDir / name), 'WAV (*.wav)')
-        if filename:
+        if path:
             data = np.vstack([irInv, irInv])
-            hifi.write_wav(filename, data, analyzer.rate)
-            self.saveDir = Path(filename).parent
+            hifi.write_wav(path, data, analyzer.rate)
+            self.saveDir = Path(path).parent
 
     def run(self):
         """Run both the Qt and asyncio event loops."""
@@ -177,7 +175,7 @@ class App(qt.QMainWindow):
         self.task.cancel()
         self.loop.stop()
 
-    def createSpectrumWidget(self) -> qt.QWidget:
+    def spectrumWidget(self) -> qt.QWidget:
         topWidget = qt.QWidget()
         vbox = qt.QVBoxLayout()
         topWidget.setLayout(vbox)
@@ -233,7 +231,7 @@ class App(qt.QMainWindow):
 
         return topWidget
 
-    def createIRWidget(self) -> qt.QWidget:
+    def irWidget(self) -> qt.QWidget:
         topWidget = qt.QWidget()
         vbox = qt.QVBoxLayout()
         topWidget.setLayout(vbox)
@@ -325,7 +323,119 @@ class App(qt.QMainWindow):
 
         return topWidget
 
-    def createSharedControls(self) -> qt.QWidget:
+    def stereoTool(self):
+
+        def leftPressed():
+            path, _ = qt.QFileDialog.getOpenFileName(
+                self, 'Load left channel', str(self.saveDir), 'WAV (*.wav)')
+            leftLabel.setText(path)
+            self.saveDir = Path(path).parent
+
+        def rightPressed():
+            path, _ = qt.QFileDialog.getOpenFileName(
+                self, 'Load right channel', str(self.saveDir), 'WAV (*.wav)')
+            rightLabel.setText(path)
+            self.saveDir = Path(path).parent
+
+        def save():
+            try:
+                L = hifi.read_wav(leftLabel.text())
+                R = hifi.read_wav(rightLabel.text())
+                left = L.data[0]
+                right = R.data[1 if len(R) > 1 else 0]
+                if L.rate != R.rate or left.size != right.size:
+                    raise ValueError(
+                        'L and R must have same size and rate')
+                stereo = [left, right]
+            except Exception as e:
+                msg = qt.QMessageBox(qt.QMessageBox.Icon.Critical, 'Error',
+                                     str(e), parent=dialog)
+                msg.exec()
+            else:
+                path, _ = qt.QFileDialog.getSaveFileName(
+                    self, 'Save stereo channels',
+                    str(self.saveDir), 'WAV (*.wav)')
+                if path:
+                    self.saveDir = Path(path).parent
+                    hifi.write_wav(path, stereo, L.rate)
+
+        leftLabel = qt.QLabel('')
+        leftButton = qt.QPushButton('Load')
+        leftButton.pressed.connect(leftPressed)
+        rightLabel = qt.QLabel('')
+        rightButton = qt.QPushButton('Load')
+        rightButton.pressed.connect(rightPressed)
+        saveButton = qt.QPushButton('Save')
+        saveButton.pressed.connect(save)
+
+        grid = qt.QGridLayout()
+        grid.setColumnMinimumWidth(2, 400)
+        grid.addWidget(qt.QLabel('Left in: '), 0, 0)
+        grid.addWidget(leftButton, 0, 1)
+        grid.addWidget(leftLabel, 0, 2)
+        grid.addWidget(qt.QLabel('Right in: '), 1, 0)
+        grid.addWidget(rightButton, 1, 1)
+        grid.addWidget(rightLabel, 1, 2)
+        grid.addWidget(qt.QLabel('Stereo out: '), 2, 0)
+        grid.addWidget(saveButton, 2, 1, 1, 2)
+
+        dialog = qt.QDialog(self)
+        dialog.setWindowTitle('Convert Left + Right to Stereo')
+        dialog.setLayout(grid)
+        dialog.exec()
+
+    def causalityTool(self):
+
+        def load():
+            path, _ = qt.QFileDialog.getOpenFileName(
+                self, 'Load Impulse Response',
+                str(self.saveDir), 'WAV (*.wav)')
+            inputLabel.setText(path)
+            self.saveDir = Path(path).parent
+
+        def save():
+            caus = causality.value() / 100
+            try:
+                irIn = hifi.read_wav(inputLabel.text())
+                out = [hifi.transform_causality(channel, caus)
+                       for channel in irIn.data]
+            except Exception as e:
+                msg = qt.QMessageBox(qt.QMessageBox.Icon.Critical, 'Error',
+                                     str(e), parent=dialog)
+                msg.exec()
+            else:
+                name = Path(inputLabel.text()).stem + \
+                       f'_{causality.value():.0f}c.wav'
+                path, _ = qt.QFileDialog.getSaveFileName(
+                    self, 'Save Impulse Response',
+                    str(self.saveDir / name), 'WAV (*.wav)')
+                if path:
+                    self.saveDir = Path(path).parent
+                    hifi.write_wav(path, out, irIn.rate)
+
+        causality = pg.SpinBox(value=0, step=5, bounds=[0, 100], suffix='%')
+        inputLabel = qt.QLabel('')
+        loadButton = qt.QPushButton('Load')
+        loadButton.pressed.connect(load)
+        saveButton = qt.QPushButton('Save')
+        saveButton.pressed.connect(save)
+
+        grid = qt.QGridLayout()
+        grid.setColumnMinimumWidth(2, 400)
+        grid.addWidget(qt.QLabel('Input IR: '), 0, 0)
+        grid.addWidget(loadButton, 0, 1)
+        grid.addWidget(inputLabel, 0, 2)
+        grid.addWidget(qt.QLabel('New causality: '), 1, 0)
+        grid.addWidget(causality, 1, 1)
+        grid.addWidget(qt.QLabel('Output IR: '), 2, 0)
+        grid.addWidget(saveButton, 2, 1, 2, 2)
+
+        dialog = qt.QDialog(self)
+        dialog.setWindowTitle('Change causality of Impulse Response')
+        dialog.setLayout(grid)
+        dialog.exec()
+
+    def sharedControls(self) -> qt.QWidget:
         topWidget = qt.QWidget()
         vbox = qt.QVBoxLayout()
         topWidget.setLayout(vbox)
@@ -338,6 +448,16 @@ class App(qt.QMainWindow):
         buttons.addButton(irButton, 1)
         spectrumButton.setChecked(True)
         buttons.idClicked.connect(self.stack.setCurrentIndex)
+
+        def toolsPressed():
+            tools.popup(toolsButton.mapToGlobal(qtcore.QPoint(0, 0)))
+
+        tools = qt.QMenu()
+        tools.addAction('Convert L + R to Stereo', self.stereoTool)
+        tools.addAction('Change IR causality', self.causalityTool)
+
+        toolsButton = qt.QPushButton('Tools...')
+        toolsButton.pressed.connect(toolsPressed)
 
         def loadCalibration():
             path, _ = qt.QFileDialog.getOpenFileName(
@@ -429,9 +549,9 @@ class App(qt.QMainWindow):
                 setMeasurementsText()
                 self.plot()
 
-        def loadAdd():
+        def loadStore():
             path, _ = qt.QFileDialog.getOpenFileName(
-                self, 'Load and Add measurements', str(self.saveDir))
+                self, 'Load and Store measurements', str(self.saveDir))
             if path:
                 with open(path, 'rb') as f:
                     analyzer: hifi.Analyzer = pickle.load(f)
@@ -460,7 +580,7 @@ class App(qt.QMainWindow):
 
         fileMenu = qt.QMenu()
         fileMenu.addAction('Load', load)
-        fileMenu.addAction('Load and Add', loadAdd)
+        fileMenu.addAction('Load and Store', loadStore)
         fileMenu.addAction('Save', save)
 
         fileButton = qt.QPushButton('File...')
@@ -488,6 +608,8 @@ class App(qt.QMainWindow):
         hbox.addSpacing(16)
         hbox.addWidget(irButton)
         hbox.addSpacing(64)
+        hbox.addWidget(toolsButton)
+        hbox.addSpacing(32)
         hbox.addWidget(correctionsButton)
         hbox.addStretch(1)
         hbox.addWidget(measurementsLabel)

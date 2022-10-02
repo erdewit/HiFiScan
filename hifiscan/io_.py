@@ -2,6 +2,7 @@ import wave
 from typing import List, NamedTuple, Tuple
 
 import numpy as np
+import numpy.typing as npt
 
 
 class Sound(NamedTuple):
@@ -13,7 +14,7 @@ class Sound(NamedTuple):
 Correction = List[Tuple[float, float]]
 
 
-def write_wav(path: str, data: np.ndarray, rate: int, width: int = 4):
+def write_wav(path: str, data: npt.ArrayLike, rate: int, width: int = 4):
     """
     Write n-channel float array with values between -1 and 1 to WAV file
 
