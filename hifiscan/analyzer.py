@@ -26,6 +26,15 @@ class Analyzer:
     """
     Analyze the system response to a chirp stimulus.
 
+    Args:
+      f0: Start frequency of chirp [Hz].
+      f1: End frequency of chirp [Hz].
+      secs: Duration of chirp.
+      rate: Audio sample rate [Hz].
+      ampl: Amplitude of chirp.
+      calibration: Microphone calibration.
+      target: Target curve.
+
     Symbols that are used:
 
       x: stimulus
@@ -191,7 +200,7 @@ class Analyzer:
 
     def H(self) -> XY:
         """
-        Transfer function H  averaged over all measurements.
+        Transfer function H averaged over all measurements.
         """
         freq = self.frequency()
         H = self.sumH / (self.numMeasurements or 1)
