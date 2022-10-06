@@ -284,7 +284,7 @@ class App(qt.QWidget):
         self.irSmoothing.sigValueChanging.connect(self.plot)
 
         causalityLabel = qt.QLabel('Causality: ')
-        causalityLabel.setToolTip('0% = Zero phase, 100% = Zero lateny')
+        causalityLabel.setToolTip('0% = Zero phase, 100% = Zero latency')
         self.causality = pg.SpinBox(
             value=0, step=5, bounds=[0, 100], suffix='%')
         self.causality.sigValueChanging.connect(self.plot)
