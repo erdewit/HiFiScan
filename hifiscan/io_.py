@@ -6,7 +6,8 @@ import numpy.typing as npt
 
 
 class Sound(NamedTuple):
-   """Audio sample- and meta- data."""
+    """Audio sample- and meta- data."""
+
     data: np.ndarray
     rate: int
     width: int = 4
