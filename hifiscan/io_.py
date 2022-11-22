@@ -6,12 +6,14 @@ import numpy.typing as npt
 
 
 class Sound(NamedTuple):
+   """Audio sample- and meta- data."""
     data: np.ndarray
     rate: int
     width: int = 4
 
 
 Correction = List[Tuple[float, float]]
+"""List of (frequency, db) tuples."""
 
 
 def write_wav(path: str, data: npt.ArrayLike, rate: int, width: int = 4):
@@ -51,9 +53,7 @@ def write_wav(path: str, data: npt.ArrayLike, rate: int, width: int = 4):
 
 
 def read_wav(path: str) -> Sound:
-    """
-    Read WAV file and return float32 arrays between -1 and 1.
-    """
+    """Read WAV file and return float32 arrays between -1 and 1."""
     with wave.open(path, 'rb') as wav:
         ch, width, rate, n, _, _ = wav.getparams()
         frames = wav.readframes(n)
@@ -79,12 +79,20 @@ def read_wav(path: str) -> Sound:
     return Sound(data, rate, width)
 
 
+def write_correction(path: str, correction: Correction):
+    """Write (frequency, db) tuples to a space-separated file."""
+    txt = '\n'.join(f'{freq} {db}' for freq, db in correction)
+    with open(path, 'w') as f:
+        f.write(txt)
+
+
 def read_correction(path: str) -> Correction:
+    """Read (frequency, db) tuples from comma- or space-separated file."""
     corr = []
     with open(path, 'r') as f:
         for line in f.readlines():
             try:
-                freq, db = line.split()
+                freq, db = line.split(',' if ',' in line else None)
                 corr.append((float(freq), float(db)))
             except ValueError:
                 pass
