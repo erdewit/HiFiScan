@@ -175,8 +175,8 @@ class Analyzer:
         db = a[1]
         freq = self.frequency()
         interp = np.empty_like(freq)
-        interp[1:] = np.interp(np.log(freq[1:]), logF, db)
         interp[0] = 0
+        interp[1:] = np.interp(np.log(freq[1:]), logF, db)
         return interp
 
     def X(self) -> np.ndarray:
@@ -288,12 +288,12 @@ class Analyzer:
         t = np.linspace(0, z.size / self.rate, z.size)
         return XY(t, z)
 
-    def correctionFactor(self, invResp: np.ndarray) -> XY:
+    def correctionFactor(self, h_inv: np.ndarray) -> XY:
         """
         Calculate correction factor for each frequency, given the
         inverse impulse response.
         """
-        Z = np.abs(rfft(invResp))
+        Z = np.abs(rfft(h_inv))
         Z /= Z.max()
         freq = np.linspace(0, self.rate / 2, Z.size)
         return XY(freq, Z)
@@ -392,7 +392,7 @@ def smooth(freq: np.ndarray, data: np.ndarray, smoothing: float) -> np.ndarray:
     """
     if not smoothing:
         return data
-    weight = 1 / (1 + freq * 2 ** (smoothing / 2 - 15))
+    weight = 1 / (1 + 2 ** (smoothing / 2 - 15) * freq)
     smoothed = np.empty_like(data)
     prev = data[-1]
     for i, w in enumerate(np.flip(weight), 1):
@@ -421,8 +421,8 @@ def transform_causality(x: np.ndarray, causality: float = 1) -> np.ndarray:
     the given impulse.
 
     Params:
-      causality: 0 = linear-phase, 1 = minimum-phase and
-        in-between values smoothly transition between these two.
+      causality: 0 = linear-phase, 1 = minimum-phase,
+        in-between values smoothly transition between the two.
 
     https://www.rle.mit.edu/dspg/documents/AVOHomoorphic75.pdf
     https://www.katjaas.nl/minimumphase/minimumphase.html
