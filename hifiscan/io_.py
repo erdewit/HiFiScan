@@ -93,7 +93,7 @@ def read_correction(path: str) -> Correction:
     with open(path, 'r') as f:
         for line in f.readlines():
             try:
-                freq, db = line.split(',' if ',' in line else None)
+                freq, db, *_ = line.split(',' if ',' in line else None)
                 corr.append((float(freq), float(db)))
             except ValueError:
                 pass
