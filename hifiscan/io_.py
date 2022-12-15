@@ -96,5 +96,10 @@ def read_correction(path: str) -> Correction:
                 freq, db = line.split(',' if ',' in line else None)
                 corr.append((float(freq), float(db)))
             except ValueError:
-                pass
+                try:
+                    """If there is an extra column in correction store it as phase"""
+                    freq, db, phase = line.split(',' if ',' in line else None)
+                    corr.append((float(freq), float(db)))
+                except ValueError:
+                    pass
     return corr
