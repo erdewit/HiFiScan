@@ -23,6 +23,7 @@ setup(
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
         'Programming Language :: Python :: 3 :: Only',
     ],
     keywords='frequency impulse response audio spectrum equalizer',
@@ -30,6 +31,6 @@ setup(
         'gui_scripts': ['hifiscan=hifiscan.app:main']
     },
     python_requires=">=3.8",
-    install_requires=['eventkit', 'numba', 'numpy', 'PyQt6', 'pyqtgraph',
+    install_requires=['eventkit', 'numpy', 'PyQt6', 'pyqtgraph',
                       'sounddevice']
 )
