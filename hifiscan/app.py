@@ -35,6 +35,7 @@ class App(qt.QWidget):
         self.stack.currentChanged.connect(self.plot)
 
         vbox = qt.QVBoxLayout()
+        vbox.setContentsMargins(0, 0, 0, 0)
         vbox.addWidget(self.stack)
         vbox.addWidget(self.sharedControls())
 
@@ -178,6 +179,7 @@ class App(qt.QWidget):
     def spectrumWidget(self) -> qt.QWidget:
         topWidget = qt.QWidget()
         vbox = qt.QVBoxLayout()
+        vbox.setContentsMargins(0, 0, 0, 0)
         topWidget.setLayout(vbox)
 
         axes = {ori: Axis(ori) for ori in
@@ -234,6 +236,7 @@ class App(qt.QWidget):
     def irWidget(self) -> qt.QWidget:
         topWidget = qt.QWidget()
         vbox = qt.QVBoxLayout()
+        vbox.setContentsMargins(0, 0, 0, 0)
         topWidget.setLayout(vbox)
         splitter = qt.QSplitter(qtcore.Qt.Orientation.Vertical)
         vbox.addWidget(splitter)
