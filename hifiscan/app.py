@@ -568,7 +568,7 @@ class App(qt.QWidget):
         def save():
             analyzer = self.refAnalyzer or self.analyzer
             timestamp = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            name = f'Measurements: {analyzer.numMeasurements}, {timestamp}'
+            name = f'Measurements={analyzer.numMeasurements}, {timestamp}'
             path, _ = qt.QFileDialog.getSaveFileName(
                 self, 'Save measurements',
                 str(self.saveDir / name))
