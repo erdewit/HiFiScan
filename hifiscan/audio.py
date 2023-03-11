@@ -22,7 +22,7 @@ class Audio:
         self.recorded = ev.Event()
         self.playQ: Deque[PlayItem] = deque()
         self.stream = sd.Stream(
-            channels=2,
+            channels=(1, 2),
             callback=self._onStream)
         self.stream.start()
         self.rate = self.stream.samplerate
@@ -73,7 +73,7 @@ class Audio:
         """
         recording = array.array('f')
         return self.recorded.map(
-            lambda rec: recording.extend(0.5 * (rec[0] + rec[1]))) \
+            lambda rec: recording.extend(rec[0])) \
             .constant(recording).aiter(skip_to_last=True)
 
 
