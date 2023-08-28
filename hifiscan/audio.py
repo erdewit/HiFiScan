@@ -23,7 +23,8 @@ class Audio:
         self.playQ: Deque[PlayItem] = deque()
         self.stream = sd.Stream(
             channels=(1, 2),
-            callback=self._onStream)
+            callback=self._onStream, 
+            samplerate = 48000)
         self.stream.start()
         self.rate = self.stream.samplerate
 
