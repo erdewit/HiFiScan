@@ -150,8 +150,8 @@ class Analyzer:
         """
         size = size or self.X().size
         nyq = self.rate / 2
-        i0 = int(0.5 + size * self.fmin / nyq)
-        i1 = int(0.5 + size * self.fmax / nyq)
+        i0 = min(size - 1, int(0.5 + size * self.fmin / nyq))
+        i1 = min(size - 1, int(0.5 + size * self.fmax / nyq))
         return slice(i0, i1 + 1)
 
     def calibration(self) -> Optional[np.ndarray]:

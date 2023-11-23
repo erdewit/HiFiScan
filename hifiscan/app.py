@@ -8,15 +8,19 @@ import signal
 import sys
 from pathlib import Path
 
-from PyQt6 import QtCore as qtcore, QtGui as qtgui, QtWidgets as qt
-
 import numpy as np
 import pyqtgraph as pg
+import sounddevice as sd
+from PyQt6 import QtCore as qtcore, QtGui as qtgui, QtWidgets as qt
 
 import hifiscan as hifi
 
 
 class App(qt.QWidget):
+
+    SAMPLE_RATES = {rate: i for i, rate in enumerate([
+        8000, 11025, 16000, 22050, 44100, 48000, 88200, 96000,
+        176400, 192000, 352800, 384000])}
 
     def __init__(self):
         super().__init__()
@@ -39,40 +43,61 @@ class App(qt.QWidget):
         vbox.addWidget(self.stack)
         vbox.addWidget(self.sharedControls())
 
+        self.resetAudio()
         self.setLayout(vbox)
         self.setWindowTitle('HiFi Scan')
         self.resize(1800, 900)
         self.show()
 
     async def analyze(self):
-        with hifi.Audio() as audio:
-            while True:
-                lo = self.lo.value()
-                hi = self.hi.value()
-                secs = self.secs.value()
-                ampl = self.ampl.value() / 100
-                ch = self.channelsBox.currentIndex()
-                if self.paused or lo >= hi or secs <= 0 or not ampl:
-                    await asyncio.sleep(0.1)
-                    continue
+        while True:
+            self.audioChanged = False
+            try:
+                rate = int(self.rateCombo.currentText())
+                audio = None
+                audio = hifi.Audio(rate)
+                while not self.audioChanged:
+                    lo = self.lo.value()
+                    hi = self.hi.value()
+                    secs = self.secs.value()
+                    ampl = self.ampl.value() / 100
+                    ch = self.channelCombo.currentIndex()
+                    if self.paused or lo >= hi or secs <= 0 or not ampl:
+                        await asyncio.sleep(0.1)
+                        continue
 
-                analyzer = hifi.Analyzer(lo, hi, secs, audio.rate, ampl,
-                                         self.calibration, self.target)
-                sound = analyzer.chirp
-                if ch:
-                    silence = np.zeros_like(sound)
-                    sound = [sound, silence] if ch == 1 else [silence, sound]
-                audio.play(sound)
-                async for recording in audio.record():
-                    if self.paused:
-                        audio.cancelPlay()
-                        break
-                    if analyzer.findMatch(recording):
-                        self.analyzer = analyzer
-                        self.plot()
-                        break
-                    if analyzer.timedOut():
-                        break
+                    analyzer = hifi.Analyzer(lo, hi, secs, audio.rate, ampl,
+                                             self.calibration, self.target)
+                    sound = analyzer.chirp
+                    if ch:
+                        silence = np.zeros_like(sound)
+                        sound = [sound, silence] if ch == 1 \
+                            else [silence, sound]
+                    audio.play(sound)
+                    async for recording in audio.record():
+                        if self.paused:
+                            audio.cancelPlay()
+                            break
+                        if analyzer.findMatch(recording):
+                            self.analyzer = analyzer
+                            self.plot()
+                            break
+                        if analyzer.timedOut():
+                            break
+            except Exception as exc:
+                qt.QMessageBox.critical(self, 'Error', str(exc))
+                self.resetAudio()
+            finally:
+                if audio:
+                    audio.close()
+
+    def resetAudio(self):
+        defaultRate = sd.query_devices(device='default')['default_samplerate']
+        if defaultRate not in self.SAMPLE_RATES:
+            defaultRate = 48000
+        index = self.SAMPLE_RATES[defaultRate]
+        self.rateCombo.setCurrentIndex(index)
+        self.audioChanged = True
 
     def plot(self, *_):
         if self.stack.currentIndex() == 0:
@@ -95,7 +120,7 @@ class App(qt.QWidget):
             self.refSpectrumPlot.setData(*spectrum)
 
     def plotIR(self):
-        if self.refAnalyzer and self.useBox.currentIndex() == 0:
+        if self.refAnalyzer and self.useCombo.currentIndex() == 0:
             analyzer = self.refAnalyzer
         else:
             analyzer = self.analyzer
@@ -135,7 +160,7 @@ class App(qt.QWidget):
             self.saveDir = Path(path).parent
 
     def saveIR(self):
-        if self.refAnalyzer and self.useBox.currentIndex() == 0:
+        if self.refAnalyzer and self.useCombo.currentIndex() == 0:
             analyzer = self.refAnalyzer
         else:
             analyzer = self.analyzer
@@ -205,8 +230,8 @@ class App(qt.QWidget):
             value=1.0, step=0.1, bounds=[0.1, 30], suffix='s')
         self.ampl = pg.SpinBox(
             value=40, step=1, bounds=[0, 100], suffix='%')
-        self.channelsBox = qt.QComboBox()
-        self.channelsBox.addItems(['Stereo', 'Left', 'Right'])
+        self.channelCombo = qt.QComboBox()
+        self.channelCombo.addItems(['Stereo', 'Left', 'Right'])
         self.spectrumSmoothing = pg.SpinBox(
             value=15, step=1, bounds=[0, 30])
         self.spectrumSmoothing.sigValueChanging.connect(self.plot)
@@ -224,7 +249,7 @@ class App(qt.QWidget):
         hbox.addSpacing(32)
         hbox.addWidget(qt.QLabel('Amplitude: '))
         hbox.addWidget(self.ampl)
-        hbox.addWidget(self.channelsBox)
+        hbox.addWidget(self.channelCombo)
         hbox.addSpacing(32)
         hbox.addWidget(qt.QLabel('Smoothing: '))
         hbox.addWidget(self.spectrumSmoothing)
@@ -292,9 +317,9 @@ class App(qt.QWidget):
             value=0, step=5, bounds=[0, 100], suffix='%')
         self.causality.sigValueChanging.connect(self.plot)
 
-        self.useBox = qt.QComboBox()
-        self.useBox.addItems(['Stored measurements', 'Last measurement'])
-        self.useBox.currentIndexChanged.connect(self.plot)
+        self.useCombo = qt.QComboBox()
+        self.useCombo.addItems(['Stored measurements', 'Last measurement'])
+        self.useCombo.currentIndexChanged.connect(self.plot)
 
         exportButton = qt.QPushButton('Export as WAV')
         exportButton.setShortcut('E')
@@ -319,7 +344,7 @@ class App(qt.QWidget):
         hbox.addWidget(self.causality)
         hbox.addSpacing(32)
         hbox.addWidget(qt.QLabel('Use: '))
-        hbox.addWidget(self.useBox)
+        hbox.addWidget(self.useCombo)
         hbox.addStretch(1)
         hbox.addWidget(exportButton)
         vbox.addLayout(hbox)
@@ -451,6 +476,13 @@ class App(qt.QWidget):
         buttons.addButton(irButton, 1)
         spectrumButton.setChecked(True)
         buttons.idClicked.connect(self.stack.setCurrentIndex)
+
+        def setAudioChanged():
+            self.audioChanged = True
+
+        self.rateCombo = qt.QComboBox()
+        self.rateCombo.addItems(str(rate) for rate in self.SAMPLE_RATES)
+        self.rateCombo.currentIndexChanged.connect(setAudioChanged)
 
         def toolsPressed():
             tools.popup(toolsButton.mapToGlobal(qtcore.QPoint(0, 0)))
@@ -620,10 +652,11 @@ class App(qt.QWidget):
         hbox.addWidget(clearButton)
         hbox.addWidget(fileButton)
         hbox.addStretch(1)
+        hbox.addWidget(qt.QLabel('Sample rate:'))
+        hbox.addWidget(self.rateCombo)
+        hbox.addStretch(1)
         hbox.addWidget(screenshotButton)
-        hbox.addSpacing(32)
         hbox.addWidget(pauseButton)
-        hbox.addSpacing(32)
         hbox.addWidget(exitButton)
         vbox.addLayout(hbox)
 

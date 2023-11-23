@@ -1,7 +1,7 @@
 import array
 from collections import deque
 from dataclasses import dataclass
-from typing import AsyncIterator, Deque
+from typing import AsyncIterator, Deque, Optional
 
 import eventkit as ev
 import numpy as np
@@ -18,11 +18,12 @@ class Audio:
           Emits a new piece of recorded sound as a numpy float array.
     """
 
-    def __init__(self):
+    def __init__(self, rate: Optional[float] = None):
         self.recorded = ev.Event()
         self.playQ: Deque[PlayItem] = deque()
         self.stream = sd.Stream(
             channels=(1, 2),
+            samplerate=rate,
             callback=self._onStream)
         self.stream.start()
         self.rate = self.stream.samplerate
