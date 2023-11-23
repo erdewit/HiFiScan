@@ -7,7 +7,7 @@ with open("README.rst", 'r', encoding="utf-8") as f:
 
 setup(
     name='hifiscan',
-    version='1.4.3',
+    version='1.5.0',
     description='Optimize the audio quality of loudspeakers',
     long_description=long_description,
     packages=['hifiscan'],
@@ -24,6 +24,7 @@ setup(
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
         'Programming Language :: Python :: 3 :: Only',
     ],
     keywords='frequency impulse response audio spectrum equalizer',
