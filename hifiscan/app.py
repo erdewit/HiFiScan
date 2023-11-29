@@ -8,10 +8,10 @@ import signal
 import sys
 from pathlib import Path
 
+from PyQt6 import QtCore as qtcore, QtGui as qtgui, QtWidgets as qt
 import numpy as np
 import pyqtgraph as pg
 import sounddevice as sd
-from PyQt6 import QtCore as qtcore, QtGui as qtgui, QtWidgets as qt
 
 import hifiscan as hifi
 
@@ -92,7 +92,9 @@ class App(qt.QWidget):
                     audio.close()
 
     def resetAudio(self):
-        defaultRate = sd.query_devices(device='default')['default_samplerate']
+        defaultDevice = next((dev for dev in sd.query_devices()
+                             if dev['name'] == 'default'), None)
+        defaultRate = defaultDevice.get('default_samplerate')
         if defaultRate not in self.SAMPLE_RATES:
             defaultRate = 48000
         index = self.SAMPLE_RATES[defaultRate]
