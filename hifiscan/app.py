@@ -94,7 +94,10 @@ class App(qt.QWidget):
     def resetAudio(self):
         defaultDevice = next((dev for dev in sd.query_devices()
                              if dev['name'] == 'default'), None)
-        defaultRate = defaultDevice.get('default_samplerate')
+        defaultRate = defaultDevice.get('default_samplerate', 0) \
+            if defaultDevice else 0
+        if not defaultRate:
+            defaultRate = sd.default.samplerate
         if defaultRate not in self.SAMPLE_RATES:
             defaultRate = 48000
         index = self.SAMPLE_RATES[defaultRate]
