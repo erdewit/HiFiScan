@@ -7,7 +7,7 @@ with open("README.rst", 'r', encoding="utf-8") as f:
 
 setup(
     name='hifiscan',
-    version='1.5.0',
+    version='1.5.1',
     description='Optimize the audio quality of loudspeakers',
     long_description=long_description,
     packages=['hifiscan'],
